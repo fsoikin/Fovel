@@ -1,0 +1,6 @@
+FSharp.Core redirects: on
+FSharpx.Core
+Xunit
+FsUnit.xUnit
+FsCheck
+xunit.runner.visualstudio

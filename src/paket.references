@@ -1,0 +1,4 @@
+FSharp.Core redirects: on
+FSharp.Compiler.Service
+FSharpx.Core
+FSharpx.Collections

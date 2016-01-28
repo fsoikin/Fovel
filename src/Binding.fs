@@ -1,0 +1,50 @@
+﻿namespace Fovel
+
+type Binding<'Type, 'Symbol> = { 
+  (* This pair defines the function (or value) being bound plus list of arguments.
+     The arguments come in groups of tuples, hence the doubly nested list type.
+     For example, a binding like "let x y z = ..." will have Fn = (x, [[y];[z]]),
+     but a binding like "let x (y,z) = ..." will have Fn = (x, [[y;z]]),
+     and a binding like "let x (y,z) w (t,u) = ..." will have Fn = (x, [[y;z];[w];[t;u]]).
+     F# does this in order to keep names of tupled arguments.
+  *)
+  Fn: ('Symbol * ('Symbol * 'Type) list list) option; 
+
+  EnclosingType: 'Type option;
+
+  // Body of the function or value
+  Expr: E<'Type, 'Symbol> }
+
+type Program<'Type, 'Symbol> = Binding<'Type, 'Symbol> list
+
+module Binding =
+  let mapType f b = 
+    let mapSym (sym, typ) = sym, f typ
+    let mapLeftPart (sym, args) = sym, (args |> List.map (List.map mapSym))
+    { Binding.Fn = b.Fn |> Option.map mapLeftPart
+      EnclosingType = b.EnclosingType |> Option.map f
+      Expr = b.Expr |> Expr.mapType f }
+
+  let mapSymbol f b =
+    let mapSym (sym, typ) = f sym, typ
+    let mapLeftPart (sym, args) = f sym, (args |> List.map (List.map mapSym))
+    { Binding.Fn = b.Fn |> Option.map mapLeftPart
+      EnclosingType = b.EnclosingType
+      Expr = b.Expr |> Expr.mapSymbol f }
+
+  let allSymbols { Binding.Fn = fn; Expr = e } =
+    let leftPart = 
+      match fn with
+      | Some (sym, args) -> sym :: (args |> List.collect (List.map fst))
+      | None -> []
+    leftPart @ (Expr.allSymbols e)
+
+  let allTypes b =
+    let typesFromLeftPart = function 
+      | Some (_, args) -> List.collect (List.map snd) args
+      | None -> []
+
+    List.concat
+      [ typesFromLeftPart b.Fn
+        Option.toList b.EnclosingType
+        Expr.allTypes b.Expr ]

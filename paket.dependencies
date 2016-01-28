@@ -1,0 +1,11 @@
+source https://www.nuget.org/api/v2
+
+nuget FSharp.Core >= 4.0.0 redirects: on
+nuget FSharp.Compiler.Service
+nuget FSharpx.Core
+nuget FSharpx.Collections
+
+nuget Xunit >= 2.1.0
+nuget FsUnit.xUnit
+nuget FsCheck
+nuget xunit.runner.visualstudio >= 2.1.0 version_in_path: true
