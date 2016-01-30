@@ -21,3 +21,9 @@ let programToFovel parseExpr fsProgram : Program<_,_,_> =
   |> Seq.choose (bindingToFovel parseExpr)
   |> Seq.filter (not << isUnsupportedBinding)
   |> Seq.toList
+
+let excludeIntrinsicDefinitions parseIntrinsic = 
+  let isIntrinsicBinding = function
+    | { Fn = Some (var, _) } -> parseIntrinsic var |> Option.isSome
+    | _ -> false
+  List.filter (not << isIntrinsicBinding)

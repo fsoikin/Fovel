@@ -28,10 +28,12 @@ let ints = """
 let src = """
 module Whatevs.Some
 
+let inline (>>) a b = a (b+1)
 let x = 5
 let f x = x+2
 let z = Intrinsics.udp3 "some" x (f 5) "err"
-let g = (fun s -> s-2) 7
+let g = 7 |> (fun s -> s-2)
+let u = f >> 8
 """
 
 let srcs = ["ints.fs", ints; "a.fs", src]
@@ -47,7 +49,7 @@ let intrinsicCode i args =
   | name::rest when (name:string).StartsWith("'") && name.EndsWith("'") -> sprintf "@%s( %s )" (name.Substring(1, name.Length-2)) (rest |> String.concat ", ")
   | _ -> "@fail"
 
-let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic)
+let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) |> Binding.excludeIntrinsicDefinitions parseIntrinsic
 let e1, typs = e |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
 let ec = CodeGen.programCode (CodeGen.exprCode intrinsicCode) e1 typs
 
