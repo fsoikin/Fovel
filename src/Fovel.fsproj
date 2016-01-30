@@ -61,10 +61,10 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Common.fs" />
-    <Compile Include="Copy of ExprGen.fs" />
     <Compile Include="Expr.fs" />
     <Compile Include="Binding.fs" />
     <Compile Include="Type.fs" />
+    <Compile Include="ExprGen.fs" />
     <Compile Include="BindingGen.fs" />
     <Compile Include="TypeGen.fs" />
     <Compile Include="SymbolGen.fs" />
@@ -74,7 +74,6 @@
     <None Include="Script.fsx" />
     <None Include="Scripts\load-references-debug.fsx" />
     <None Include="Scripts\load-project-debug.fsx" />
-    <Compile Include="ExprGen.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
