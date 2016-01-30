@@ -75,29 +75,32 @@ let constCode (c: obj) =
   | :? float as f -> sprintf "%f" f
   | _ -> failwithf "Const of type %s not supported" (c.GetType().Name)
 
-let rec exprListCode exprs = exprs |> Seq.map (exprCode >> sprintf "(%s)") |> String.concat ", "
+let rec exprCode intrinsicCode expr = 
+  let r = exprCode intrinsicCode
+  let rl = Seq.map (r >> sprintf "(%s)") >> String.concat ", "
+  match expr with
+  | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
 
-and exprCode = function
-  | E.NewTuple(_, items) -> sprintf "array( %s )" <| exprListCode items
-  | E.TupleGet(_, index, tuple) -> sprintf "(%s)[%d]" <| exprCode tuple <| index
+  | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
+  | E.TupleGet(_, index, tuple) -> sprintf "(%s)[%d]" <| r tuple <| index
 
-  | E.UnionCase(unionType, case, fields) -> sprintf "__t['%s']['%s'].make( %s )" unionType case (exprListCode fields)
-  | E.UnionCaseTest(union, unionType, case) -> sprintf "__t['%s']['%s'].test( %s )" unionType case (exprCode union)
-  | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s)['%s']" (exprCode union) field
+  | E.UnionCase(unionType, case, fields) -> sprintf "__t['%s']['%s'].make( %s )" unionType case (rl fields)
+  | E.UnionCaseTest(union, unionType, case) -> sprintf "__t['%s']['%s'].test( %s )" unionType case (r union)
+  | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s)['%s']" (r union) field
 
-  | E.NewRecord(recordType, fields) -> sprintf "__t['%s']( %s )" recordType (exprListCode fields)
-  | E.RecordFieldGet(_, record, field) -> sprintf "(%s)['%s']" (exprCode record) field
+  | E.NewRecord(recordType, fields) -> sprintf "__t['%s']( %s )" recordType (rl fields)
+  | E.RecordFieldGet(_, record, field) -> sprintf "(%s)['%s']" (r record) field
 
-  | E.Function(parameter, body) -> sprintf "fn(%s) %s" parameter (exprCode body)
-  | E.InfixOp(leftArg, op, rightArg) -> sprintf "(%s) %s (%s)" (exprCode leftArg) (infixOpCode op) (exprCode rightArg)
+  | E.Function(parameter, body) -> sprintf "fn(%s) %s" parameter (r body)
+  | E.InfixOp(leftArg, op, rightArg) -> sprintf "(%s) %s (%s)" (r leftArg) (infixOpCode op) (r rightArg)
   | E.SymRef sym -> sym
   | E.Const(c, _) -> constCode c
-  | E.Let(var, varValue, body) -> sprintf "{ var %s = (%s) %s }" var (exprCode varValue) (exprCode body)
-  | E.Conditional(test, then', else') -> sprintf "if (%s) (%s) else (%s)" (exprCode test) (exprCode then') (exprCode else')
-  | E.Call(func, args) -> sprintf "(%s)(%s)" (exprCode func) (exprListCode args)
+  | E.Let(var, varValue, body) -> sprintf "{ var %s = (%s) %s }" var (r varValue) (r body)
+  | E.Conditional(test, then', else') -> sprintf "if (%s) (%s) else (%s)" (r test) (r then') (r else')
+  | E.Call(func, args) -> sprintf "(%s)(%s)" (r func) (rl args)
   | E.Unsupported(error) -> failwith error
 
-let bindingCode { Binding.Fn = fn; Expr = expr } = 
+let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
   let expr = exprCode expr
 
   match fn with
@@ -107,7 +110,7 @@ let bindingCode { Binding.Fn = fn; Expr = expr } =
     let args = args |> Seq.collect id |> Seq.map fst |> String.concat ", "
     sprintf "var %s = fn(%s) %s" fn args expr
 
-let programCode program types = 
+let programCode exprCode program types = 
   let types = types |> Map.toSeq |> typesCode 
-  let code = program |> Seq.map bindingCode |> String.concat "\n"
+  let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
   sprintf "var __t = %s\n\n%s" types code

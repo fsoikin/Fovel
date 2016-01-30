@@ -28,16 +28,46 @@ module Intrinsics =
   | Fn "Microsoft.FSharp.Core.snd" -> Some 1
   | _ -> None
 
+  let ofSeq defs (fn: FSharpMemberOrFunctionOrValue) = 
+    let fn = fn.FullName
+    let isFn (fnName, i) = if fn = fnName then Some i else None
+    defs |> Seq.choose isFn |> Seq.tryFind (fun _ -> true)
+
 module Errors =
   let malformedDecisionTree = sprintf "Cannot parse decision tree %A"
   let decisionTreeBindingsNumberMismatch = sprintf "Mismatch between the number of symbols %d and bindings %d in decition tree branch."
   let undefinedCaseField = sprintf "The program attempts to retrieve the case field %s.%s, but that field is not defined on that union."
   //let unsupportedConstType = sprintf "Constants of type %A are not supported."
 
-let rec exprToFovel expr =
-  let r = exprToFovel
-  let rl = List.map r
+
+let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue list * FSharpExpr) list ) (expr: FSharpExpr) =
+  let r = parseDecisionTree parseExpr branches
   match expr with
+  | BasicPatterns.IfThenElse (test, thn, els) -> E.Conditional (parseExpr test, r thn, r els)
+
+  | BasicPatterns.DecisionTreeSuccess (idx, bindings) when idx >= 0 && idx < branches.Length ->
+    let branchSymbols, branchExpr = branches.[idx]
+    let bindings = bindings |> Seq.map parseExpr |> List.ofSeq
+
+    if bindings.Length <> branchSymbols.Length then 
+      E.Unsupported (Errors.decisionTreeBindingsNumberMismatch branchSymbols.Length bindings.Length)
+    else
+      let branchExpr = parseExpr branchExpr
+      let combineLet nextExpr (binding, symbol) = E.Let(symbol, binding, nextExpr)
+        
+      Seq.zip bindings branchSymbols 
+      |> Seq.fold combineLet branchExpr
+
+  | _ -> E.Unsupported (Errors.malformedDecisionTree expr)  
+
+
+let rec exprToFovel intrinsic expr =
+  let r = exprToFovel intrinsic
+  let rl = List.map r
+  let (|Intrinsic|_|) e = intrinsic e
+  match expr with
+  | BasicPatterns.Call (None, Intrinsic i, _, _, args) -> E.Intrinsic( i, rl args )
+
   | BasicPatterns.Call (None, Intrinsics.InfixOperator op, _, _, [arg1; arg2]) ->  E.InfixOp (r arg1, op, r arg2)
   | BasicPatterns.Call (None, Intrinsics.Pipe, _, _, [arg; fn]) -> E.Call (r fn, [r arg])
   | BasicPatterns.Call (None, Intrinsics.BackPipe, _, _, [fn; arg]) -> E.Call (r fn, [r arg])
@@ -54,7 +84,7 @@ let rec exprToFovel expr =
   | BasicPatterns.Application (fn, _, args) -> E.Call (r fn, rl args)
 
   | BasicPatterns.IfThenElse (test, thn, els) -> E.Conditional (r test, r thn, r els)
-  | BasicPatterns.DecisionTree (rootExpr, branches) -> parseDecisionTree branches rootExpr
+  | BasicPatterns.DecisionTree (rootExpr, branches) -> parseDecisionTree r branches rootExpr
 
   | BasicPatterns.NewUnionCase (typ, case, exprs) -> E.UnionCase (typ, case.Name, rl exprs)
   | BasicPatterns.UnionCaseTest (expr, typ, case) -> E.UnionCaseTest (r expr, typ, case.Name)
@@ -64,23 +94,3 @@ let rec exprToFovel expr =
   | BasicPatterns.FSharpFieldGet (Some record, recordType, field) -> E.RecordFieldGet (recordType, r record, field.Name)
 
   | e -> E.Unsupported (sprintf "%A" e)
-
-and parseDecisionTree (branches: (FSharpMemberOrFunctionOrValue list * FSharpExpr) list ) (expr: FSharpExpr) =
-  let r = parseDecisionTree branches
-  match expr with
-  | BasicPatterns.IfThenElse (test, thn, els) -> E.Conditional (exprToFovel test, r thn, r els)
-
-  | BasicPatterns.DecisionTreeSuccess (idx, bindings) when idx >= 0 && idx < branches.Length ->
-    let branchSymbols, branchExpr = branches.[idx]
-    let bindings = bindings |> Seq.map exprToFovel |> List.ofSeq
-
-    if bindings.Length <> branchSymbols.Length then 
-      E.Unsupported (Errors.decisionTreeBindingsNumberMismatch branchSymbols.Length bindings.Length)
-    else
-      let branchExpr = exprToFovel branchExpr
-      let combineLet nextExpr (binding, symbol) = E.Let(symbol, binding, nextExpr)
-        
-      Seq.zip bindings branchSymbols 
-      |> Seq.fold combineLet branchExpr
-
-  | _ -> E.Unsupported (Errors.malformedDecisionTree expr)  

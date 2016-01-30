@@ -1,6 +1,6 @@
 ﻿namespace Fovel
 
-type Binding<'Type, 'Symbol> = { 
+type Binding<'Type, 'Symbol, 'Intrinsic> = { 
   (* This pair defines the function (or value) being bound plus list of arguments.
      The arguments come in groups of tuples, hence the doubly nested list type.
      For example, a binding like "let x y z = ..." will have Fn = (x, [[y];[z]]),
@@ -13,9 +13,9 @@ type Binding<'Type, 'Symbol> = {
   EnclosingType: 'Type option;
 
   // Body of the function or value
-  Expr: E<'Type, 'Symbol> }
+  Expr: E<'Type, 'Symbol, 'Intrinsic> }
 
-type Program<'Type, 'Symbol> = Binding<'Type, 'Symbol> list
+type Program<'Type, 'Symbol, 'Intrinsic> = Binding<'Type, 'Symbol, 'Intrinsic> list
 
 module Binding =
   let mapType f b = 
@@ -31,6 +31,11 @@ module Binding =
     { Binding.Fn = b.Fn |> Option.map mapLeftPart
       EnclosingType = b.EnclosingType
       Expr = b.Expr |> Expr.mapSymbol f }
+
+  let mapIntrinsic f b =
+    { Binding.Fn = b.Fn
+      EnclosingType = b.EnclosingType
+      Expr = b.Expr |> Expr.mapIntrinsic f }
 
   let allSymbols { Binding.Fn = fn; Expr = e } =
     let leftPart = 

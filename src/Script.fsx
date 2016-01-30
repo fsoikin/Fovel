@@ -17,21 +17,38 @@ open Fovel.Gen
 open FSharpx.Collections
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
-let src = """
-type R = { X: int; Y: string }
-let r = { X = 5; Y = "a" }
-let x = { r with Y = "c" }
+let ints = """
+  module Intrinsics
 
-type U = A of int | B of string * R
-let u = A 5
-let x = B ( x.Y, x )
+    let udp (name: string) a  = failwith "x"
+    let udp2 (name: string) a b = failwith "x"
+    let udp3 (name: string) a b c = failwith "x"
+  """
+
+let src = """
+module Whatevs.Some
+
+let x = 5
+let f x = x+2
+let z = Intrinsics.udp3 "some" x (f 5) "err"
+let g = (fun s -> s-2) 7
 """
 
-//parseProgram src |> Seq.iter( fun (b, e) -> printfn "%A = %A" b (fst b.Value).IsMember )
+let srcs = ["ints.fs", ints; "a.fs", src]
 
-let e = parseProgram src |> Binding.programToFovel
+let parseIntrinsic = 
+  Expr.Intrinsics.ofSeq [
+    "Intrinsics.udp", 1
+    "Intrinsics.udp2", 2
+    "Intrinsics.udp3", 3 ]
+
+let intrinsicCode i args = 
+  match args with 
+  | name::rest when (name:string).StartsWith("'") && name.EndsWith("'") -> sprintf "@%s( %s )" (name.Substring(1, name.Length-2)) (rest |> String.concat ", ")
+  | _ -> "@fail"
+
+let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic)
 let e1, typs = e |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
-
-let ec = CodeGen.programCode e1 typs
+let ec = CodeGen.programCode (CodeGen.exprCode intrinsicCode) e1 typs
 
 //List.collect Binding.allTypes e |> Seq.distinct |> Seq.toList |> List.map (fun t -> t.ToString())

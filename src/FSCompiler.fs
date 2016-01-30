@@ -40,13 +40,12 @@ let makeFileSystem (getFile: string -> byte[] option) (log: string -> obj -> uni
       (getFile fileName |> Option.isSome) || (File.Exists fileName)
   }
 
-let parseProgram source =
-  let sourceFileName = "x.fsx"
+let parseProgram (sources: (string*string) seq) =
   let checker = FSharpChecker.Create(keepAssemblyContents=true)
   let opts = {
     FSharpProjectOptions.IsIncompleteTypeCheckEnvironment = false
     ProjectFileName = "project.fsproj"
-    ProjectFileNames = [|sourceFileName|]
+    ProjectFileNames = sources |> Seq.map fst |> Seq.toArray
     OtherOptions = [|"--noframework"; "--out:x.dll"; "--target:library"|]
     ReferencedProjects = [||]
     UseScriptResolutionRules = false
@@ -59,11 +58,9 @@ let parseProgram source =
     | FSharpImplementationFileDeclaration.MemberOrFunctionOrValue (v, vs, expr) -> [(Some (v, vs), expr)]
     | FSharpImplementationFileDeclaration.InitAction expr -> [(None, expr)]
 
-  let sourceBytes = System.Text.Encoding.UTF8.GetBytes( source: string )
-
-  let output = new StringWriter()
-  let getFile name = if System.String.Compare( name, sourceFileName, true ) = 0 then Some sourceBytes else None
-  Shim.FileSystem <- makeFileSystem getFile (fun _ _ -> ()) //(fun s o -> output.WriteLine( sprintf "%s %A" s o ))
+  let sources = sources |> Seq.map (fun (name, content) -> name, System.Text.Encoding.UTF8.GetBytes( content )) |> Map.ofSeq
+  let getFile name = Map.tryFind name sources
+  Shim.FileSystem <- makeFileSystem getFile (fun _ _ -> ())
 
   let res = checker.ParseAndCheckProject( opts ) |> Async.RunSynchronously
 
