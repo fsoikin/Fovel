@@ -3,9 +3,6 @@ open Microsoft.FSharp.Compiler.SourceCodeServices
 open Fovel
 open Expr
 
-module Errors =
-  let memberFunctionsNotSupported (fn: FSharpMemberOrFunctionOrValue) = sprintf "Member functions are not supported: %s.%s" fn.EnclosingEntity.FullName fn.LogicalName
-
 let isMember (fn: FSharpMemberOrFunctionOrValue) = fn.IsMember
 let isCompilerGenerated (fn: FSharpMemberOrFunctionOrValue) = fn.IsMember
 let isAlgebraicType (t: FSharpEntity) = t.IsFSharpUnion || t.IsFSharpRecord
@@ -17,7 +14,7 @@ let argsToFovel<'a> = List.map (List.map argToFovel)
 
 let bindingToFovel parseExpr = function
   | Some (fn, _), _ when skipBinding fn -> None
-  | Some (fn, _), _ when isMember fn -> Some <| Result.fail (Errors.memberFunctionsNotSupported fn)
+  | Some (fn, _), _ when isMember fn -> Some <| Result.fail (Error.MemberMethodsNotSupported fn)
 
   | Some (fn, args), body -> 
       parseExpr body 

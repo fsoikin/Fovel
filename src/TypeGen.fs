@@ -2,19 +2,10 @@
 open Microsoft.FSharp.Compiler.SourceCodeServices
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 open Fovel
-open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library.Tables
-
-module Errors =
-  let unsupportedType = sprintf "Type %A is not supported."
 
 let rec private unwrapAbbreviation (t: FSharpType) =
   if t.HasTypeDefinition && t.TypeDefinition.IsFSharpAbbreviation then unwrapAbbreviation t.TypeDefinition.AbbreviatedType
   else t
-
-let fsharpTypeName t =
-  match unwrapAbbreviation t with
-  | t when t.HasTypeDefinition -> t.TypeDefinition.LogicalName
-  | _ -> "?"
 
 let private unionCase (c: FSharpUnionCase) =
   let items = c.UnionCaseFields |> Seq.map (fun f -> f.Name) |> Seq.toList
@@ -52,9 +43,9 @@ let fsharpTypeToFovelType (t: FSharpType) =
   | _ when t.HasTypeDefinition ->
     match typeFromEntity t.TypeDefinition with
     | Some t -> Result.retn <| t
-    | None -> Result.fail (Errors.unsupportedType t)
+    | None -> Result.fail (Error.UnsupportedType t)
 
-  | _ -> Result.fail (Errors.unsupportedType t)
+  | _ -> Result.fail (Error.UnsupportedType t)
 
 let genTypes program = 
   program 

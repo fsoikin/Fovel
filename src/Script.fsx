@@ -1,4 +1,5 @@
 ﻿#load "Scripts/load-references-debug.fsx"
+#load "Error.fs"
 #load "Common.fs"
 #load "Expr.fs"
 #load "Binding.fs"
@@ -54,9 +55,13 @@ let intrinsicCode i args =
   | name::rest when (name:string).StartsWith("'") && name.EndsWith("'") -> sprintf "@%s( %s )" (name.Substring(1, name.Length-2)) (rest |> String.concat ", ")
   | _ -> "@fail"
 
-let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
-let (OK (e1, typs)) = e |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
-let ec = CodeGen.programCode (CodeGen.exprCode intrinsicCode) e1 typs
+let e = 
+  parseProgram srcs 
+  >>= Binding.programToFovel (Expr.exprToFovel parseIntrinsic) 
+  |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
+  |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
+  ||*> CodeGen.programCode (CodeGen.exprCode intrinsicCode)
+  |> Result.mapError Error.formatAll
 
 let x: E<_,_,int option> = Call (Call (SymRef "f",[Const (1,"int#0")]),[Const (2,"int#0")])
 CodeGen.exprCode intrinsicCode (Call (SymRef "f",[Const (1, "")]) )

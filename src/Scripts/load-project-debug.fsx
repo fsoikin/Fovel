@@ -3,6 +3,7 @@
 #load "load-references-debug.fsx"
 #load "../AssemblyInfo.fs"
       "../Common.fs"
+      "../Error.fs"
       "../Expr.fs"
       "../Binding.fs"
       "../Type.fs"

@@ -20,7 +20,7 @@ type Result<'t, 'err> = OK of 't | Error of 'err list
 
 module Result =
   let inline bind f = function | OK t -> f t | Error e -> Error e
-  let inline bindError f = function | OK t -> t | Error e -> f e
+  let inline bindError f = function | OK t -> OK t | Error e -> f e
   let inline retn x = OK x
   let inline fail e = Error [e]
   let inline map f = bind (OK << f)

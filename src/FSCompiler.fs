@@ -64,7 +64,9 @@ let parseProgram (sources: (string*string) seq) =
 
   let res = checker.ParseAndCheckProject( opts ) |> Async.RunSynchronously
 
-  res.AssemblyContents.ImplementationFiles 
-  |> Seq.collect (fun f -> f.Declarations |> Seq.map flattenDecls)
-  |> Seq.concat 
-  |> List.ofSeq
+  res.Errors |> Seq.map (Result.fail << Error.FSharpError) |> Result.sequence 
+  |> Result.map( fun _ -> 
+    res.AssemblyContents.ImplementationFiles 
+    |> Seq.collect (fun f -> f.Declarations |> Seq.map flattenDecls)
+    |> Seq.concat 
+    |> Seq.toList )

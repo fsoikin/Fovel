@@ -33,13 +33,6 @@ module Intrinsics =
     let isFn (fnName, i) = if fn = fnName then Some i else None
     defs |> Seq.choose isFn |> Seq.tryHead
 
-module Errors =
-  let malformedDecisionTree = sprintf "Cannot parse decision tree %A"
-  let decisionTreeBindingsNumberMismatch = sprintf "Mismatch between the number of symbols %d and bindings %d in decition tree branch."
-  let undefinedCaseField = sprintf "The program attempts to retrieve the case field %s.%s, but that field is not defined on that union."
-  let unsupportedExpression = sprintf "Expression is not supported: %A"
-  let memberMethodsNotSupported = sprintf "Member methods are not supported."
-
 let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue list * FSharpExpr) list ) (expr: FSharpExpr) =
   let r = parseDecisionTree parseExpr branches
   match expr with
@@ -50,7 +43,7 @@ let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue li
     let bindings = bindings |> Seq.map parseExpr |> List.ofSeq
 
     if bindings.Length <> branchSymbols.Length then 
-      Result.fail (Errors.decisionTreeBindingsNumberMismatch branchSymbols.Length bindings.Length)
+      Result.fail <| Error.DecisionTreeBindingsNumberMismatch (branchSymbols.Length, bindings.Length, branchExpr)
     else
       let branchExpr = parseExpr branchExpr
       let combineLet nextExpr (binding, symbol) = E.Let <!! (Result.retn symbol, binding, nextExpr)
@@ -58,7 +51,7 @@ let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue li
       Seq.zip bindings branchSymbols 
       |> Seq.fold combineLet branchExpr
 
-  | _ -> Result.fail (Errors.malformedDecisionTree expr)  
+  | _ -> Result.fail <| Error.MalformedDecisionTree expr
 
 
 let rec exprToFovel intrinsic expr : Result<_,_> =
@@ -96,6 +89,6 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.FSharpFieldGet (Some record, recordType, field) -> E.RecordFieldGet <!! (retn recordType, r record, retn field.Name)
 
   // Unsupported patterns
-  | BasicPatterns.Call (Some _, _, _, _, _) -> Result.fail (Errors.memberMethodsNotSupported)
+  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.MemberMethodsNotSupported fn)
 
-  | e -> Result.fail (Errors.unsupportedExpression e)
+  | e -> Result.fail (Error.UnsupportedExpression e)

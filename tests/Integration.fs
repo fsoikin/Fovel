@@ -5,11 +5,15 @@ open Fovel.Gen
 open FsUnit.Xunit
 
 let compileSources srcs parseIntrinsic intrinsicCode = 
-  FSCompiler.parseProgram srcs 
-  |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) 
-  |> Binding.excludeIntrinsicDefinitions parseIntrinsic
-  |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
-  ||> CodeGen.programCode (CodeGen.exprCode intrinsicCode)
+  match
+    FSCompiler.parseProgram srcs 
+    >>= Binding.programToFovel (Expr.exprToFovel parseIntrinsic) 
+    |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
+    |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
+    ||*> CodeGen.programCode (CodeGen.exprCode intrinsicCode)
+    |> Result.mapError Error.formatAll with 
+  | OK r -> r
+  | Error err -> failwith <| String.concat "\n" err
 
 let compileSource src = compileSources ["file.fs", src]
 
@@ -25,6 +29,7 @@ let compileCompare fsharpSource shovelSource =
 let [<Fact>] ``Basic`` () = 
   compileCompare
     """
+      module X
       let x = 5
       let f x = x+1
       let g a b = a b
@@ -40,6 +45,7 @@ let [<Fact>] ``Basic`` () =
 let [<Fact>] ``Operators as functions`` () = 
   compileCompare
     """
+      module X
       let f = (+)
       let x = f 1 2
       let y = (+) 5
@@ -53,6 +59,7 @@ let [<Fact>] ``Operators as functions`` () =
 let [<Fact>] ``Conditional`` () = 
   compileCompare
     """
+      module X
       let x = 5
       let y = 7
       let z = if x > y then x+y else y-x """
@@ -64,6 +71,7 @@ let [<Fact>] ``Conditional`` () =
 let [<Fact>] ``Complex functions`` () = 
   compileCompare
     """
+      module X
       let f x y = 
         let z = x+6
         let y = y-6
@@ -78,6 +86,7 @@ let [<Fact>] ``Complex functions`` () =
 let [<Fact>] ``Recursive functions`` () = 
   compileCompare
     """
+      module X
       let rec f x y = 
         let z = x+6
         let y = y-6
