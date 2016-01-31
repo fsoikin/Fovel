@@ -71,6 +71,7 @@
     <Compile Include="SymbolGen.fs" />
     <Compile Include="FSCompiler.fs" />
     <Compile Include="CodeGen.fs" />
+    <Compile Include="Integration.fs" />
     <None Include="paket.references" />
     <None Include="Script.fsx" />
     <None Include="Scripts\load-references-debug.fsx" />

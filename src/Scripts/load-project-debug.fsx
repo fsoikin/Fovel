@@ -13,3 +13,4 @@
       "../SymbolGen.fs"
       "../FSCompiler.fs"
       "../CodeGen.fs"
+      "../Integration.fs"

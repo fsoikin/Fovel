@@ -6,11 +6,7 @@ open FsUnit.Xunit
 
 let compileSources srcs parseIntrinsic intrinsicCode = 
   match
-    FSCompiler.parseProgram srcs 
-    >>= Binding.programToFovel (Expr.exprToFovel parseIntrinsic) 
-    |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
-    |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
-    ||*> CodeGen.programCode (CodeGen.exprCode intrinsicCode)
+    fsharpSourcesToShovel parseIntrinsic intrinsicCode srcs 
     |> Result.mapError Error.formatAll with 
   | OK r -> r
   | Error err -> failwith <| String.concat "\n" err
@@ -25,6 +21,8 @@ let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> S
 let compileCompare fsharpSource shovelSource = 
   (compileSource fsharpSource noIntrinsics emptyIntrCode) |> split 
   |> should equal (split shovelSource)
+
+let getErrors = function | OK _ -> [] | Error errs -> errs
 
 let [<Fact>] ``Basic`` () = 
   compileCompare
@@ -97,3 +95,15 @@ let [<Fact>] ``Recursive functions`` () =
       var f = fn(x, y) { var z = ((x) + (6)) { var y__1 = ((y) - (6)) (z) * ((g)(y__1)) } }
       var g = fn(x__1) (f)(x__1, (x__1) + (1))
       var h = ((g)(7)) + ((f)(5, 8)) """
+
+let [<Fact>] ``Classes are not supported`` () =
+  fsharpSourcesToShovel noIntrinsics emptyIntrCode 
+    ["a.fs","""
+      module M
+      type A() =
+        member x.f() = () """ ]
+  |> Result.mapError Error.formatAll
+  |> getErrors
+  |> should equal 
+    [ "Member methods/functions are not supported: M.A..ctor"
+      "Member methods/functions are not supported: M.A.f"]

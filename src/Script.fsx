@@ -10,13 +10,10 @@
 #load "SymbolGen.fs"
 #load "FSCompiler.fs"
 #load "CodeGen.fs"
+#load "Integration.fs"
 
 open Fovel
-open Fovel.FSCompiler
-open Fovel.Expr
 open Fovel.Gen
-open FSharpx.Collections
-open Microsoft.FSharp.Compiler.SourceCodeServices
 
 let ints = """
   module Intrinsics
@@ -27,17 +24,9 @@ let ints = """
   """
 
 let src = """
-module Whatevs.Some
-
-  type C() = 
-    member x.f() = "a"
-
-  let rec f x y = 
-    let z = x+6
-    let y = y-6
-    z * (g y)
-  and g x = f x (x+1)
-  let h = g 7 + f 5 8
+    module M
+      type A() =
+        member x.f() = ()
 """
 
 let srcs = [
@@ -56,14 +45,5 @@ let intrinsicCode i args =
   | _ -> "@fail"
 
 let e = 
-  parseProgram srcs 
-  >>= Binding.programToFovel (Expr.exprToFovel parseIntrinsic) 
-  |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
-  |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
-  ||*> CodeGen.programCode (CodeGen.exprCode intrinsicCode)
+  fsharpSourcesToShovel parseIntrinsic intrinsicCode srcs 
   |> Result.mapError Error.formatAll
-
-let x: E<_,_,int option> = Call (Call (SymRef "f",[Const (1,"int#0")]),[Const (2,"int#0")])
-CodeGen.exprCode intrinsicCode (Call (SymRef "f",[Const (1, "")]) )
-
-//List.collect Binding.allTypes e |> Seq.distinct |> Seq.toList |> List.map (fun t -> t.ToString())
