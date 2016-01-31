@@ -11,7 +11,6 @@ type Type =
   | Array
   | Function
   | GenericParameter of Identifier
-  | Unsupported of error: string
 
 [<CompilationRepresentation( CompilationRepresentationFlags.ModuleSuffix )>]
 module Type =
@@ -26,4 +25,3 @@ module Type =
   | Array -> "array"
   | Function -> "function"
   | GenericParameter p -> p
-  | Unsupported err -> sprintf "[%s]" err

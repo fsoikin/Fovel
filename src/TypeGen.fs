@@ -45,15 +45,22 @@ let private typeFromEntity (e: FSharpEntity) =
 let fsharpTypeToFovelType (t: FSharpType) = 
   let t = unwrapAbbreviation t
   match t with
-  | _ when t.IsGenericParameter -> Type.GenericParameter t.GenericParameter.Name
-  | _ when t.IsTupleType -> Type.Tuple (t.GenericArguments.Count)
-  | _ when t.IsFunctionType && t.GenericArguments.Count = 2 -> Type.Function
-  | _ when t.HasTypeDefinition && t.TypeDefinition.IsArrayType && t.TypeDefinition.GenericParameters.Count = 1 -> Type.Array
+  | _ when t.IsGenericParameter -> Result.retn <| Type.GenericParameter t.GenericParameter.Name
+  | _ when t.IsTupleType -> Result.retn <| Type.Tuple (t.GenericArguments.Count)
+  | _ when t.IsFunctionType && t.GenericArguments.Count = 2 -> Result.retn <| Type.Function
+  | _ when t.HasTypeDefinition && t.TypeDefinition.IsArrayType && t.TypeDefinition.GenericParameters.Count = 1 -> Result.retn <| Type.Array
   | _ when t.HasTypeDefinition ->
     match typeFromEntity t.TypeDefinition with
-    | Some t -> t
-    | None -> Type.Unsupported (Errors.unsupportedType t)
+    | Some t -> Result.retn <| t
+    | None -> Result.fail (Errors.unsupportedType t)
 
-  | _ -> Type.Unsupported (Errors.unsupportedType t)
+  | _ -> Result.fail (Errors.unsupportedType t)
 
-let genTypes p = p |> List.map (Binding.mapType fsharpTypeToFovelType)
+let genTypes program = 
+  program 
+  |> Seq.collect Binding.allTypes
+  |> Result.seqMap (fun t -> Result.tuple (Result.retn t) (fsharpTypeToFovelType t))
+  |> Result.map (fun types ->
+    let getType t = types |> Seq.find (fst >> (=) t) |> snd // TODO: turns this into map as soon as FSC #518 is fixed
+    program |> List.map (Binding.mapType getType)
+  )

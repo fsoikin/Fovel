@@ -32,9 +32,6 @@ let typeCode = function
   | Int | Float | Function | GenericParameter _ -> 
     None
   
-  | Unsupported _ -> 
-    None
-
   | Union(_, cases) -> 
     sprintf "make( defstruct( array( '%s' ) ), \n%s )"
     <| (cases |> Seq.map (fun c -> c.CaseId) |> String.concat "','")
@@ -100,7 +97,6 @@ let rec exprCode intrinsicCode expr =
   | E.Let(var, varValue, body) -> sprintf "{ var %s = (%s) %s }" var (r varValue) (r body)
   | E.Conditional(test, then', else') -> sprintf "if (%s) (%s) else (%s)" (r test) (r then') (r else')
   | E.Call(func, args) -> sprintf "(%s)(%s)" (r func) (rl args)
-  | E.Unsupported(error) -> failwith error
 
 let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
   let expr = exprCode expr

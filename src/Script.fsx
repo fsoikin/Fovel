@@ -28,12 +28,15 @@ let ints = """
 let src = """
 module Whatevs.Some
 
-      let rec f x y = 
-        let z = x+6
-        let y = y-6
-        z * (g y)
-      and g x = f x (x+1)
-      let h = g 7 + f 5 8
+  type C() = 
+    member x.f() = "a"
+
+  let rec f x y = 
+    let z = x+6
+    let y = y-6
+    z * (g y)
+  and g x = f x (x+1)
+  let h = g 7 + f 5 8
 """
 
 let srcs = [
@@ -51,8 +54,8 @@ let intrinsicCode i args =
   | name::rest when (name:string).StartsWith("'") && name.EndsWith("'") -> sprintf "@%s( %s )" (name.Substring(1, name.Length-2)) (rest |> String.concat ", ")
   | _ -> "@fail"
 
-let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) |> Binding.excludeIntrinsicDefinitions parseIntrinsic
-let e1, typs = e |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
+let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
+let (OK (e1, typs)) = e |*> Symbol.genSymbols >>= Type.genTypes |*> CodeGen.assignTypeNames
 let ec = CodeGen.programCode (CodeGen.exprCode intrinsicCode) e1 typs
 
 let x: E<_,_,int option> = Call (Call (SymRef "f",[Const (1,"int#0")]),[Const (2,"int#0")])

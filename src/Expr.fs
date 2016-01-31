@@ -21,7 +21,6 @@ type E<'Type, 'Symbol, 'Intrinsic> =
   | Const of obj * 'Type
   | Let of var: 'Symbol * varValue: E<'Type, 'Symbol, 'Intrinsic> * body: E<'Type, 'Symbol, 'Intrinsic>
   | Conditional of test: E<'Type, 'Symbol, 'Intrinsic> * then': E<'Type, 'Symbol, 'Intrinsic> * else': E<'Type, 'Symbol, 'Intrinsic>
-  | Unsupported of error: string
 
 module Expr =
   let rec mapType f e = 
@@ -43,7 +42,6 @@ module Expr =
     | E.Const (o, t) -> E.Const( o, f t )
     | E.Let (var, value, body) -> E.Let( var, r value, r body )
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
-    | E.Unsupported err -> E.Unsupported err
 
   let rec mapSymbol f e = 
     let r = mapSymbol f
@@ -64,7 +62,6 @@ module Expr =
     | E.Const (o, t) -> E.Const( o, t )
     | E.Let (var, value, body) -> E.Let( f var, r value, r body )
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
-    | E.Unsupported err -> E.Unsupported err
 
   let rec mapIntrinsic f e = 
     let r = mapIntrinsic f
@@ -85,7 +82,6 @@ module Expr =
     | E.Const (o, t) -> E.Const( o, t )
     | E.Let (var, value, body) -> E.Let( var, r value, r body )
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
-    | E.Unsupported err -> E.Unsupported err
 
   let rec isUnsupportedExpr = function
     | E.Intrinsic (_, args) -> Seq.exists isUnsupportedExpr args
@@ -102,7 +98,6 @@ module Expr =
     | E.NewRecord (_, fields) -> Seq.exists isUnsupportedExpr fields
     | E.RecordFieldGet (_, r, _) -> isUnsupportedExpr r
     | E.Const _ | E.SymRef _ -> false
-    | E.Unsupported _ -> true
 
   let rec allTypes expr = 
     let r = allTypes
@@ -117,7 +112,6 @@ module Expr =
     | E.SymRef _ -> []
     | E.Const (_, t) -> [t]
     | E.Conditional (test, thn, els) -> rl [test; thn; els]
-    | E.Unsupported _ -> []
 
   let rec allSymbols expr = 
     let r = allSymbols
@@ -131,4 +125,3 @@ module Expr =
     | E.SymRef sym -> [sym]
     | E.Const (_, _) -> []
     | E.Conditional (test, thn, els) -> rl [test; thn; els]
-    | E.Unsupported _ -> []

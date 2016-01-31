@@ -3,24 +3,39 @@ open Microsoft.FSharp.Compiler.SourceCodeServices
 open Fovel
 open Expr
 
-let isBadBinding (fn: FSharpMemberOrFunctionOrValue) = 
-  fn.IsMember && fn.IsCompilerGenerated && (fn.EnclosingEntity.IsFSharpUnion || fn.EnclosingEntity.IsFSharpRecord)
+module Errors =
+  let memberFunctionsNotSupported (fn: FSharpMemberOrFunctionOrValue) = sprintf "Member functions are not supported: %s.%s" fn.EnclosingEntity.FullName fn.LogicalName
+
+let isMember (fn: FSharpMemberOrFunctionOrValue) = fn.IsMember
+let isCompilerGenerated (fn: FSharpMemberOrFunctionOrValue) = fn.IsMember
+let isAlgebraicType (t: FSharpEntity) = t.IsFSharpUnion || t.IsFSharpRecord
+
+let skipBinding (fn: FSharpMemberOrFunctionOrValue) =  isMember fn && isCompilerGenerated fn && isAlgebraicType fn.EnclosingEntity
 
 let argToFovel (arg: FSharpMemberOrFunctionOrValue) = arg, arg.FullType
 let argsToFovel<'a> = List.map (List.map argToFovel)
 
 let bindingToFovel parseExpr = function
-  | Some (fn, _), _ when isBadBinding fn -> None
-  | Some (fn, args), body -> Some { Fn = Some (fn, argsToFovel args); EnclosingType = None; Expr = parseExpr body }
-  | None, body -> Some { Fn = None; EnclosingType = None; Expr = parseExpr body }
+  | Some (fn, _), _ when skipBinding fn -> None
+  | Some (fn, _), _ when isMember fn -> Some <| Result.fail (Errors.memberFunctionsNotSupported fn)
+
+  | Some (fn, args), body -> 
+      parseExpr body 
+      |> Result.map (fun expr -> { Fn = Some (fn, argsToFovel args); EnclosingType = None; Expr = expr })
+      |> Some
+
+  | None, body -> 
+    parseExpr body
+    |> Result.map (fun expr -> { Fn = None; EnclosingType = None; Expr = expr })
+    |> Some
 
 let isUnsupportedBinding { Binding.Expr = expr } = isUnsupportedExpr expr
 
-let programToFovel parseExpr fsProgram : Program<_,_,_> =
+let programToFovel parseExpr fsProgram : Result<Program<_,_,_>,_> =
   fsProgram 
   |> Seq.choose (bindingToFovel parseExpr)
-  |> Seq.filter (not << isUnsupportedBinding)
-  |> Seq.toList
+  |> Result.sequence
+  |> Result.map (List.filter (not << isUnsupportedBinding))
 
 let excludeIntrinsicDefinitions parseIntrinsic = 
   let isIntrinsicBinding = function
