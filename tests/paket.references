@@ -1,4 +1,5 @@
 FSharp.Core redirects: on
+FSharp.Compiler.Service
 FSharpx.Core
 Xunit
 FsUnit.xUnit

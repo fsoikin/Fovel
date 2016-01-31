@@ -28,15 +28,17 @@ let ints = """
 let src = """
 module Whatevs.Some
 
-let inline (>>) a b = a (b+1)
-let x = 5
-let f x = x+2
-let z = Intrinsics.udp3 "some" x (f 5) "err"
-let g = 7 |> (fun s -> s-2)
-let u = f >> 8
+      let rec f x y = 
+        let z = x+6
+        let y = y-6
+        z * (g y)
+      and g x = f x (x+1)
+      let h = g 7 + f 5 8
 """
 
-let srcs = ["ints.fs", ints; "a.fs", src]
+let srcs = [
+  //"ints.fs", ints
+  "a.fs", src]
 
 let parseIntrinsic = 
   Expr.Intrinsics.ofSeq [
@@ -52,5 +54,8 @@ let intrinsicCode i args =
 let e = parseProgram srcs |> Binding.programToFovel (Expr.exprToFovel parseIntrinsic) |> Binding.excludeIntrinsicDefinitions parseIntrinsic
 let e1, typs = e |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
 let ec = CodeGen.programCode (CodeGen.exprCode intrinsicCode) e1 typs
+
+let x: E<_,_,int option> = Call (Call (SymRef "f",[Const (1,"int#0")]),[Const (2,"int#0")])
+CodeGen.exprCode intrinsicCode (Call (SymRef "f",[Const (1, "")]) )
 
 //List.collect Binding.allTypes e |> Seq.distinct |> Seq.toList |> List.map (fun t -> t.ToString())

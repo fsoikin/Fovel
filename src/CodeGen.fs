@@ -53,7 +53,9 @@ let typesCode types =
   let codes = types |> Seq.choose gen |> Seq.toList
   let names = codes |> Seq.map (fst >> sprintf "'%s'") |> String.concat ", "
   let defs = codes |> Seq.map snd |> String.concat ",\n\n"
-  sprintf "make( defstruct( array( %s ) ), \n\n%s )" names defs
+  if names = "" 
+    then "" 
+    else sprintf "make( defstruct( array( %s ) ), \n\n%s )" names defs
 
 let infixOpCode = function
   | InfixOpKind.Plus -> "+"
@@ -77,12 +79,12 @@ let constCode (c: obj) =
 
 let rec exprCode intrinsicCode expr = 
   let r = exprCode intrinsicCode
-  let rl = Seq.map (r >> sprintf "(%s)") >> String.concat ", "
+  let rl = Seq.map r >> String.concat ", "
   match expr with
   | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
 
   | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
-  | E.TupleGet(_, index, tuple) -> sprintf "(%s)[%d]" <| r tuple <| index
+  | E.TupleGet(_, index, tuple) -> sprintf "%s[%d]" <| r tuple <| index
 
   | E.UnionCase(unionType, case, fields) -> sprintf "__t['%s']['%s'].make( %s )" unionType case (rl fields)
   | E.UnionCaseTest(union, unionType, case) -> sprintf "__t['%s']['%s'].test( %s )" unionType case (r union)
@@ -112,5 +114,6 @@ let bindingCode exprCode { Binding.Fn = fn; Expr = expr } =
 
 let programCode exprCode program types = 
   let types = types |> Map.toSeq |> typesCode 
+  let types = if types = "" then "" else "var __t = " + types
   let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
-  sprintf "var __t = %s\n\n%s" types code
+  types + code

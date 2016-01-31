@@ -72,6 +72,7 @@ let rec exprToFovel intrinsic expr =
   | BasicPatterns.Call (None, Intrinsics.Pipe, _, _, [arg; fn]) -> E.Call (r fn, [r arg])
   | BasicPatterns.Call (None, Intrinsics.BackPipe, _, _, [fn; arg]) -> E.Call (r fn, [r arg])
   | BasicPatterns.Call (None, Intrinsics.TupleGet idx, _, _, [tupl]) -> E.TupleGet (tupl.Type, idx, r tupl)
+  | BasicPatterns.Call (None, fn, _, _, []) -> E.SymRef fn
   | BasicPatterns.Call (None, fn, _, _, args) -> E.Call (E.SymRef fn, rl args)
 
   | BasicPatterns.NewTuple (typ, exprs) -> E.NewTuple (typ, List.map r exprs)

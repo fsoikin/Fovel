@@ -2,8 +2,6 @@
 open Xunit
 open FsCheck
 open Fovel
-open FsUnit.Xunit
-open FSharpx.State
 
 [<AutoOpen>]
 module Common =
