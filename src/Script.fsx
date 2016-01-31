@@ -14,35 +14,35 @@
 
 open Fovel
 open Fovel.Gen
+open Microsoft.FSharp.Compiler.SourceCodeServices
 
 let ints = """
+  [<AutoOpen>]
   module Intrinsics
 
-    let udp (name: string) a  = failwith "x"
-    let udp2 (name: string) a b = failwith "x"
-    let udp3 (name: string) a b c = failwith "x"
+  type IntrinsicAttribute() = 
+    inherit System.Attribute()
   """
 
 let src = """
-    module M
-      type A() =
-        member x.f() = ()
-"""
+      module X
+      type C() =
+        static member f() = 5
+        static member f(s: string) = 6
+        static member f(x: 'a) = "whatever"
 
-let srcs = [
-  //"ints.fs", ints
-  "a.fs", src]
+      let x = C.f()
+      let y = C.f "abc"
+      let z = C.f 5 """
 
-let parseIntrinsic = 
-  Expr.Intrinsics.ofSeq [
-    "Intrinsics.udp", 1
-    "Intrinsics.udp2", 2
-    "Intrinsics.udp3", 3 ]
+let srcs = [ "ints.fs", ints; "a.fs", src]
+let parseIntrinsic (i: FSharpMemberOrFunctionOrValue) = 
+  if i.Attributes |> Seq.exists (fun a -> a.AttributeType.TryFullName = Some "Intrinsics.IntrinsicAttribute") then Some 1
+  else None
 
-let intrinsicCode i args = 
-  match args with 
-  | name::rest when (name:string).StartsWith("'") && name.EndsWith("'") -> sprintf "@%s( %s )" (name.Substring(1, name.Length-2)) (rest |> String.concat ", ")
-  | _ -> "@fail"
+let intrinsicCode i args = string i
+
+//FSCompiler.parseProgram srcs >>= fsharpProgramToFovel parseIntrinsic >>= eraseFSharpEntities
 
 let e = 
   fsharpSourcesToShovel parseIntrinsic intrinsicCode srcs 

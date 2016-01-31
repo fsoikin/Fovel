@@ -83,22 +83,6 @@ module Expr =
     | E.Let (var, value, body) -> E.Let( var, r value, r body )
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
 
-  let rec isUnsupportedExpr = function
-    | E.Intrinsic (_, args) -> Seq.exists isUnsupportedExpr args
-    | E.Call (fn, args) -> isUnsupportedExpr fn || Seq.exists isUnsupportedExpr args
-    | E.Conditional (tst, thn, els) -> Seq.exists isUnsupportedExpr [tst;thn;els]
-    | E.Function (_, body) -> isUnsupportedExpr body
-    | E.InfixOp (a, _, b) -> isUnsupportedExpr a || isUnsupportedExpr b
-    | E.Let (_, letExpr, inExpr) -> isUnsupportedExpr letExpr || isUnsupportedExpr inExpr
-    | E.NewTuple (_, es) -> Seq.exists isUnsupportedExpr es
-    | E.TupleGet (_, _, tupl) -> isUnsupportedExpr tupl
-    | E.UnionCase (_, _, fields) -> Seq.exists isUnsupportedExpr fields
-    | E.UnionCaseGet (union, _, _, _) -> isUnsupportedExpr union
-    | E.UnionCaseTest (union, _, _) -> isUnsupportedExpr union
-    | E.NewRecord (_, fields) -> Seq.exists isUnsupportedExpr fields
-    | E.RecordFieldGet (_, r, _) -> isUnsupportedExpr r
-    | E.Const _ | E.SymRef _ -> false
-
   let rec allTypes expr = 
     let r = allTypes
     let rl = List.collect r

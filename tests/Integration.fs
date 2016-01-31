@@ -96,14 +96,35 @@ let [<Fact>] ``Recursive functions`` () =
       var g = fn(x__1) (f)(x__1, (x__1) + (1))
       var h = ((g)(7)) + ((f)(5, 8)) """
 
-let [<Fact>] ``Classes are not supported`` () =
+let [<Fact>] ``Static methods and overloads`` () = 
+  compileCompare
+    """
+      module X
+      type C() =
+        static member f() = 5
+        static member f(s: string) = 6
+        static member f(x: 'a) = "whatever"
+
+      let x = C.f()
+      let y = C.f "abc"
+      let z = C.f 5 """
+    """
+      var f = fn(unitVar0) 5
+      var f__1 = fn(s) 6
+      var f__2 = fn(x) 'whatever'
+      var x__1 = (f)(null)
+      var y = (f__1)('abc')
+      var z = (f__2)(5) """
+
+let [<Fact>] ``Instance methods are not supported`` () =
   fsharpSourcesToShovel noIntrinsics emptyIntrCode 
     ["a.fs","""
       module M
       type A() =
-        member x.f() = () """ ]
+        member x.f() = () 
+        
+      let a = Unchecked.defaultof<A>
+      let x = a.f() """ ]
   |> Result.mapError Error.formatAll
   |> getErrors
-  |> should equal 
-    [ "Member methods/functions are not supported: M.A..ctor"
-      "Member methods/functions are not supported: M.A.f"]
+  |> should equal [ "Instance methods are not supported: M.A.f"]

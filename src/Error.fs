@@ -7,7 +7,7 @@ type Error =
 
   | MalformedDecisionTree of tree: FSharpExpr
   | DecisionTreeBindingsNumberMismatch of symbols: int * bindings: int * tree: FSharpExpr
-  | MemberMethodsNotSupported of fn: FSharpMemberOrFunctionOrValue
+  | InstanceMethodsNotSupported of fn: FSharpMemberOrFunctionOrValue
 
   | UnsupportedExpression of expr: FSharpExpr
   | UnsupportedType of typ: FSharpType
@@ -30,7 +30,7 @@ module Error =
     | Error.FSharpError e -> sprintf "FSharp %s: %s" (formatFSharpSeverity e.Severity) e.Message
     | Error.MalformedDecisionTree t -> sprintf "Malformed decision tree: %s" (formatExpr t)
     | Error.DecisionTreeBindingsNumberMismatch (symbols, bindings, tree) -> sprintf "Decision tree has %d symbols, but %d bindings: %s" symbols bindings (formatExpr tree)
-    | Error.MemberMethodsNotSupported fn -> sprintf "Member methods/functions are not supported: %s.%s" fn.EnclosingEntity.FullName fn.LogicalName
+    | Error.InstanceMethodsNotSupported fn -> sprintf "Instance methods are not supported: %s.%s" fn.EnclosingEntity.FullName fn.LogicalName
     | Error.UnsupportedExpression e -> sprintf "Unsupported expression: %s" (formatExpr e)
     | Error.UnsupportedType t -> sprintf "Unsupported type: %s" (formatType t)
 

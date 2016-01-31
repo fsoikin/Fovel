@@ -89,6 +89,6 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.FSharpFieldGet (Some record, recordType, field) -> E.RecordFieldGet <!! (retn recordType, r record, retn field.Name)
 
   // Unsupported patterns
-  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.MemberMethodsNotSupported fn)
+  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.InstanceMethodsNotSupported fn)
 
   | e -> Result.fail (Error.UnsupportedExpression e)
