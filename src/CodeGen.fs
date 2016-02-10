@@ -1,21 +1,23 @@
 ﻿module Fovel.Gen.CodeGen
 open Fovel
 
+type NamedType = NamedType of name: string * typ: Type
+
 let assignTypeNames program =
   let indexedName name idx = if idx = 0 then name else sprintf "%s__%d" name idx
   let typeNames = 
     program |> Seq.collect Binding.allTypes |> Seq.distinct
     |> Common.uniqueIndexedNames id Type.name indexedName
-  let getName typ = typeNames.[typ]
+  let namedType typ = NamedType (typeNames.[typ], typ)
 
-  let program = program |> List.map (Binding.mapType getName)
-  let nameTypes = typeNames |> Seq.map (fun (typ,name) -> name, typ) |> Map.ofSeq
-
-  program, nameTypes
+  let program = program |> List.map (Binding.mapType namedType)
+  program
 
 let codeGlobals = """
   var __unioncase = defstruct( array( 'make', 'test' ) )
 """
+
+let (|SingleCaseUnion|_|) u = match u with Union (_, [_]) -> Some() | _ -> None
 
 let unionCaseCode case =
   let fieldsQuoted = case.Fields |> Seq.map (sprintf "'%s'") |> String.concat ", "
@@ -33,6 +35,8 @@ let typeCode = function
   | Int | Float | Function | GenericParameter _ -> 
     None
   
+  | SingleCaseUnion -> None // Erase single-case unions
+
   | Union(_, cases) -> 
     sprintf "make( defstruct( array( '%s' ) ), \n%s )"
     <| (cases |> Seq.map (fun c -> c.CaseId) |> String.concat "','")
@@ -47,7 +51,7 @@ let typeCode = function
     Some <| sprintf "{ var def = defstruct( array( '%s' ) )  fn( %s ) make( def, %s ) }" fieldsQuoted fields fields
 
 let typesCode types =
-  let gen (name, typ) = typeCode typ |> Option.map(fun c -> name, c)
+  let gen (NamedType (name, typ)) = typeCode typ |> Option.map(fun c -> name, c)
   let codes = types |> Seq.choose gen |> Seq.toList
   let names = codes |> Seq.map (fst >> sprintf "'%s'") |> String.concat ", "
   let defs = codes |> Seq.map snd |> String.concat ",\n\n"
@@ -70,7 +74,8 @@ let infixOpCode = function
 let constCode (c: obj) = 
   match c with
   | null -> "null"
-  | :? int | :? bool -> string c
+  | :? int -> string c
+  | :? bool as b -> if b then "true" else "false"
   | :? string as s -> sprintf "'%s'" s
   | :? float as f -> sprintf "%f" f
   | _ -> failwithf "Const of type %s not supported" (c.GetType().Name)
@@ -84,11 +89,16 @@ let rec exprCode intrinsicCode expr =
   | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
   | E.TupleGet(_, index, tuple) -> sprintf "%s[%d]" <| r tuple <| index
 
-  | E.UnionCase(unionType, case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
-  | E.UnionCaseTest(union, unionType, case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
+  // Single-case unions are erased:
+  | E.UnionCase(NamedType (_,SingleCaseUnion), _, [value]) -> r value
+  | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion), _) -> "true"
+  | E.UnionCaseGet(union, NamedType (_,SingleCaseUnion), _, _) -> r union
+
+  | E.UnionCase(NamedType (unionType,_), case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
+  | E.UnionCaseTest(union, NamedType (unionType,_), case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
   | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s)['%s']" (r union) field
 
-  | E.NewRecord(recordType, fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
+  | E.NewRecord(NamedType (recordType,_), fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
   | E.RecordFieldGet(_, record, field) -> sprintf "(%s).%s" (r record) field
 
   | E.NewArray (_, els) -> sprintf "array( %s )" (rl els)
@@ -112,8 +122,8 @@ let bindingCode exprCode { Binding.Fn = fn; Expr = expr } =
     let args = args |> Seq.collect id |> Seq.map fst |> String.concat ", "
     sprintf "var %s = fn(%s) %s" fn args expr
 
-let programCode exprCode program types = 
-  let types = types |> Map.toSeq |> typesCode 
-  let types = if types = "" then "" else "var __t = " + types
+let programCode exprCode program = 
+  let types = program |> List.collect Binding.allTypes |> List.distinct |> typesCode
+  let types = if types = "" then "" else sprintf "%s\nvar __t = %s" codeGlobals types
   let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
-  codeGlobals + types + code
+  types + "\n" + code

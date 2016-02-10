@@ -45,4 +45,4 @@ let fsharpSourcesToShovel config sources =
   >>= fsharpProgramToFovel config.ParseIntrinsic
   |*> replaceSymbols config.ReplaceSymbols
   >>= eraseFSharpEntities
-  ||*> generateShovelCode config.GenerateIntrinsicCode
+  |*> generateShovelCode config.GenerateIntrinsicCode

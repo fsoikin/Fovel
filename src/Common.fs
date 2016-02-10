@@ -7,7 +7,8 @@ type Code = string
 [<AutoOpen>]
 module Common =
 
-  let sanitizeId id = id
+  let idRegex = System.Text.RegularExpressions.Regex("[^a-zA-Z_0-9]")
+  let sanitizeId id = idRegex.Replace( id, "_" )
 
   let uniqueIndexedNames getKey getName indexedName items =
     items 

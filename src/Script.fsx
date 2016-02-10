@@ -24,14 +24,14 @@ let ints = """
 
 let src = """
       module X
+      type U = U of int | W of string
 
-      let a = [|1 .. 3|]
-      let x = 5+8
-      let b = a.[x]
-      let c = Array.length a
+      let x = U 0
+      let y = W "1"
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
+
 
 let e = 
   fsharpSourcesToShovel Config.Default srcs 

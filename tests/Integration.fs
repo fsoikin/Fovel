@@ -13,7 +13,7 @@ let compileSources srcs config =
 
 let compileSource src = compileSources ["file.fs", src]
 
-let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> Seq.filter ((<>) "") |> Seq.toList
+let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> Seq.filter ((<>) "") |> String.concat "\n"
 
 let compileCompare fsharpSource shovelSource = 
   (compileSource fsharpSource Config.WithoutCoreLib) |> split 
@@ -114,14 +114,73 @@ let [<Fact>] ``Static methods and overloads`` () =
       var z = (f__2)(5) """
 
 let [<Fact>] ``Instance methods are not supported`` () =
-  fsharpSourcesToShovel Config.WithoutCoreLib
+  let config = { 
+    ParseIntrinsic = fun f -> if f.FullName.EndsWith("failwith") then Some() else None
+    GenerateIntrinsicCode = fun _ _ -> "0"
+    ReplaceSymbols = None }
+  fsharpSourcesToShovel config
     ["a.fs","""
       module M
-      type A() =
+      type [<AllowNullLiteral>] A() =
         member x.f() = () 
         
-      let a = Unchecked.defaultof<A>
+      let a: A = failwith "boo"
       let x = a.f() """ ]
   |> Result.mapError Error.formatAll
   |> getErrors
   |> should equal [ "Instance methods are not supported: M.A.f"]
+
+  
+let [<Fact>] ``Single-case unions are erased`` () = 
+  compileCompare
+    """
+      module X
+      type U = U of int
+
+      let x = U 0
+      let y = U 1
+      let (U z) = x
+      let (U w) = y
+      let p = z + w """
+    """
+      var x = 0
+      var y = 1
+      var patternInput_7 = x
+      var z = patternInput_7
+      var patternInput_8_1 = y
+      var w = patternInput_8_1
+      var p = (z) + (w) """
+
+  
+let [<Fact>] ``Unions`` () = 
+  compileCompare
+    """
+      module X
+      type U = U of int | W of ss: string | Z of a: int * b: bool
+
+      let x = U 0
+      let y = W "1"
+      let z = Z (5, true) """
+    """
+      var __unioncase = defstruct( array( 'make', 'test' ) )
+      var __t = make( defstruct( array( 'U' ) ), 
+        make( defstruct( array( 'U','W','Z' ) ), 
+          {
+            var def = defstruct( array( 'Item' ) )
+            makestruct( __unioncase, 
+              fn (Item) make( def, Item ), 
+              fn (x) isStructInstance( x, def ) ) },
+          {
+            var def = defstruct( array( 'ss' ) )
+            makestruct( __unioncase, 
+              fn (ss) make( def, ss ), 
+              fn (x) isStructInstance( x, def ) ) },
+          {
+            var def = defstruct( array( 'a', 'b' ) )
+            makestruct( __unioncase, 
+              fn (a, b) make( def, a, b ), 
+              fn (x) isStructInstance( x, def ) ) } ) )
+
+      var x = __t.U.U.make( 0 )
+      var y = __t.U.W.make( '1' )
+      var z = __t.U.Z.make( 5, true ) """

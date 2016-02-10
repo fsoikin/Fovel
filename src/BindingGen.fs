@@ -5,9 +5,8 @@ open Expr
 
 let isInstanceMember (fn: FSharpMemberOrFunctionOrValue) = fn.IsInstanceMember
 let isImplicitConstructor (fn: FSharpMemberOrFunctionOrValue) = fn.IsImplicitConstructor
-let isCompilerGenerated (fn: FSharpMemberOrFunctionOrValue) = fn.IsCompilerGenerated
 
-let skipBinding fn = isInstanceMember fn || isCompilerGenerated fn || isImplicitConstructor fn
+let skipBinding fn = isInstanceMember fn || isImplicitConstructor fn
 
 let argToFovel (arg: FSharpMemberOrFunctionOrValue) = arg, arg.FullType
 let argsToFovel<'a> = List.map (List.map argToFovel)
