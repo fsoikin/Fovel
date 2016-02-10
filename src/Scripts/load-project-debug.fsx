@@ -13,4 +13,6 @@
       "../SymbolGen.fs"
       "../FSCompiler.fs"
       "../CodeGen.fs"
+      "../CoreLib.fs"
       "../Integration.fs"
+      "../CoreLib.FSharp.fs"

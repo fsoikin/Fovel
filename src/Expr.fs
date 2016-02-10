@@ -14,6 +14,8 @@ type E<'Type, 'Symbol, 'Intrinsic> =
   | UnionCaseGet of union: E<'Type, 'Symbol, 'Intrinsic> * unionType: 'Type * case: Identifier * field: Identifier
   | NewRecord of recordType: 'Type * fields: E<'Type, 'Symbol, 'Intrinsic> list
   | RecordFieldGet of recordType: 'Type * record: E<'Type, 'Symbol, 'Intrinsic> * field: Identifier
+  | NewArray of elementType: 'Type * elements: E<'Type, 'Symbol, 'Intrinsic> list
+  | ArrayElement of array: E<'Type, 'Symbol, 'Intrinsic> * idx: E<'Type, 'Symbol, 'Intrinsic>
   | Function of parameter: 'Symbol * body: E<'Type, 'Symbol, 'Intrinsic>
   | Call of func: E<'Type, 'Symbol, 'Intrinsic> * args: E<'Type, 'Symbol, 'Intrinsic> list
   | InfixOp of leftArg: E<'Type, 'Symbol, 'Intrinsic> * op: InfixOpKind * rightArg: E<'Type, 'Symbol, 'Intrinsic>
@@ -35,6 +37,8 @@ module Expr =
     | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, f t, case, field )
     | E.NewRecord (t, fields) -> E.NewRecord( f t, rl fields )
     | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (f typ, r record, field)
+    | E.NewArray (typ, els) -> E.NewArray (f typ, rl els)
+    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
     | E.Function (p, body) -> E.Function( p, r body )
     | E.Call (fn, args) -> E.Call( r fn, rl args )
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
@@ -55,6 +59,8 @@ module Expr =
     | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, t, case, field )
     | E.NewRecord (t, fields) -> E.NewRecord( t, rl fields )
     | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (typ, r record, field)
+    | E.NewArray (typ, els) -> E.NewArray (typ, rl els)
+    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
     | E.Function (p, body) -> E.Function( f p, r body )
     | E.Call (fn, args) -> E.Call( r fn, rl args )
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
@@ -75,6 +81,8 @@ module Expr =
     | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, t, case, field )
     | E.NewRecord (t, fields) -> E.NewRecord( t, rl fields )
     | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (typ, r record, field)
+    | E.NewArray (typ, els) -> E.NewArray (typ, rl els)
+    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
     | E.Function (p, body) -> E.Function( p, r body )
     | E.Call (fn, args) -> E.Call( r fn, rl args )
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
@@ -88,8 +96,9 @@ module Expr =
     let rl = List.collect r
     match expr with
     | E.Intrinsic (_, args) -> rl args
-    | E.NewTuple (t, items) | E.UnionCase (t, _, items) | E.NewRecord (t, items) ->  t :: (rl items)
+    | E.NewTuple (t, items) | E.UnionCase (t, _, items) | E.NewRecord (t, items) | E.NewArray (t, items) ->  t :: (rl items)
     | E.UnionCaseTest (e, t, _) | E.UnionCaseGet (e, t, _, _) | E.TupleGet (t, _, e) | E.RecordFieldGet (t, e, _) -> t :: (r e)
+    | E.ArrayElement (arr, idx) -> rl [arr; idx]
     | E.Function (_, body) -> r body
     | E.Call (fn, args) -> (r fn) @ (rl args)
     | E.InfixOp (e1, _, e2) | E.Let (_, e1, e2) -> (r e1) @ (r e2)
@@ -102,10 +111,11 @@ module Expr =
     let rl = List.collect r
     match expr with
     | E.Intrinsic (_, args) -> rl args
-    | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) ->  rl items
+    | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) | E.NewArray (_, items) ->  rl items
     | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.Function (_, e) | E.RecordFieldGet (_, e, _) -> r e
+    | E.ArrayElement (arr,idx) -> rl [arr; idx]
     | E.Call (e1, e2) -> (r e1) @ (rl e2)
     | E.InfixOp (e1, _, e2) | E.Let (_, e1, e2) -> (r e1) @ (r e2)
     | E.SymRef sym -> [sym]
-    | E.Const (_, _) -> []
+    | E.Const _ -> []
     | E.Conditional (test, thn, els) -> rl [test; thn; els]

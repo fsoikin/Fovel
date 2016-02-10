@@ -15,8 +15,8 @@ type Type =
 [<CompilationRepresentation( CompilationRepresentationFlags.ModuleSuffix )>]
 module Type =
   let name = function
-  | Union (name, _) | Record(name, _) -> name
-  | Tuple size -> sprintf "%d-tuple" size
+  | Union (name, _) | Record(name, _) -> sanitizeId name
+  | Tuple size -> sprintf "tuple%d" size
   | Unit -> "unit"
   | String -> "string"
   | Int -> "int"

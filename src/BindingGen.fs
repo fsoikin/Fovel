@@ -36,3 +36,8 @@ let excludeIntrinsicDefinitions parseIntrinsic =
     | { Fn = Some (var, _) } -> parseIntrinsic var |> Option.isSome
     | _ -> false
   List.filter (not << isIntrinsicBinding)
+
+let mapExpr f binding = {
+  Binding.Fn = binding.Fn
+  EnclosingType = binding.EnclosingType
+  Expr = f binding.Expr }

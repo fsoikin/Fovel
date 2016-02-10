@@ -4,22 +4,19 @@ open Fovel
 open Fovel.Gen
 open FsUnit.Xunit
 
-let compileSources srcs parseIntrinsic intrinsicCode = 
+let compileSources srcs config = 
   match
-    fsharpSourcesToShovel parseIntrinsic intrinsicCode srcs 
+    fsharpSourcesToShovel config srcs 
     |> Result.mapError Error.formatAll with 
   | OK r -> r
   | Error err -> failwith <| String.concat "\n" err
 
 let compileSource src = compileSources ["file.fs", src]
 
-let noIntrinsics _ = None
-let emptyIntrCode _ _ = ""
-
 let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> Seq.filter ((<>) "") |> Seq.toList
 
 let compileCompare fsharpSource shovelSource = 
-  (compileSource fsharpSource noIntrinsics emptyIntrCode) |> split 
+  (compileSource fsharpSource Config.WithoutCoreLib) |> split 
   |> should equal (split shovelSource)
 
 let getErrors = function | OK _ -> [] | Error errs -> errs
@@ -117,7 +114,7 @@ let [<Fact>] ``Static methods and overloads`` () =
       var z = (f__2)(5) """
 
 let [<Fact>] ``Instance methods are not supported`` () =
-  fsharpSourcesToShovel noIntrinsics emptyIntrCode 
+  fsharpSourcesToShovel Config.WithoutCoreLib
     ["a.fs","""
       module M
       type A() =

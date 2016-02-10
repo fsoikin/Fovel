@@ -2,9 +2,10 @@
 open Fovel
 
 let assignTypeNames program =
+  let indexedName name idx = if idx = 0 then name else sprintf "%s__%d" name idx
   let typeNames = 
     program |> Seq.collect Binding.allTypes |> Seq.distinct
-    |> Common.uniqueIndexedNames Type.name (sprintf "%s#%d")
+    |> Common.uniqueIndexedNames id Type.name indexedName
   let getName typ = typeNames.[typ]
 
   let program = program |> List.map (Binding.mapType getName)
@@ -43,7 +44,7 @@ let typeCode = function
   | Record(_, fields) -> 
     let fieldsQuoted = fields |> String.concat "', '"
     let fields = fields |> String.concat ", "
-    Some <| sprintf "{ var def = defstruct( '%s' )  fn( %s ) make( def, %s ) }" fieldsQuoted fields fields
+    Some <| sprintf "{ var def = defstruct( array( '%s' ) )  fn( %s ) make( def, %s ) }" fieldsQuoted fields fields
 
 let typesCode types =
   let gen (name, typ) = typeCode typ |> Option.map(fun c -> name, c)
@@ -83,12 +84,15 @@ let rec exprCode intrinsicCode expr =
   | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
   | E.TupleGet(_, index, tuple) -> sprintf "%s[%d]" <| r tuple <| index
 
-  | E.UnionCase(unionType, case, fields) -> sprintf "__t['%s']['%s'].make( %s )" unionType case (rl fields)
-  | E.UnionCaseTest(union, unionType, case) -> sprintf "__t['%s']['%s'].test( %s )" unionType case (r union)
+  | E.UnionCase(unionType, case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
+  | E.UnionCaseTest(union, unionType, case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
   | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s)['%s']" (r union) field
 
-  | E.NewRecord(recordType, fields) -> sprintf "__t['%s']( %s )" recordType (rl fields)
-  | E.RecordFieldGet(_, record, field) -> sprintf "(%s)['%s']" (r record) field
+  | E.NewRecord(recordType, fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
+  | E.RecordFieldGet(_, record, field) -> sprintf "(%s).%s" (r record) field
+
+  | E.NewArray (_, els) -> sprintf "array( %s )" (rl els)
+  | E.ArrayElement (arr, idx) -> sprintf "(%s).%s" (r arr) (r idx)
 
   | E.Function(parameter, body) -> sprintf "fn(%s) %s" parameter (r body)
   | E.InfixOp(leftArg, op, rightArg) -> sprintf "(%s) %s (%s)" (r leftArg) (infixOpCode op) (r rightArg)
@@ -112,4 +116,4 @@ let programCode exprCode program types =
   let types = types |> Map.toSeq |> typesCode 
   let types = if types = "" then "" else "var __t = " + types
   let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
-  types + code
+  codeGlobals + types + code
