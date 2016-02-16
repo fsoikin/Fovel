@@ -1,6 +1,10 @@
 ﻿#load "Scripts/load-references-debug.fsx"
-#load "Error.fs"
+
+module Resources =
+  let CoreLib() = System.IO.File.ReadAllText """d:\work\Fovel\src\CoreLib.FSharp.fs"""
+
 #load "Common.fs"
+#load "Error.fs"
 #load "Expr.fs"
 #load "Binding.fs"
 #load "ExprGen.fs"
@@ -10,7 +14,9 @@
 #load "SymbolGen.fs"
 #load "FSCompiler.fs"
 #load "CodeGen.fs"
+#load "CoreLib.FSharp.fs"
 #load "CoreLib.fs"
+#load "Validation.fs"
 #load "Integration.fs"
 
 open Fovel
@@ -19,7 +25,7 @@ open Microsoft.FSharp.Compiler.SourceCodeServices
 
 let ints = """
   module XX
-  let a = 0
+  let a = [1..3]
   """
 
 let src = """
@@ -28,6 +34,8 @@ let src = """
 
       let x = U 0
       let y = W "1"
+      let z = match x with | W a -> a | U _ -> ""
+      let r = XX.a |> List.map (fun x -> x+2)
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]

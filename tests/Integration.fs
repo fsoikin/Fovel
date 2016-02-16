@@ -117,7 +117,9 @@ let [<Fact>] ``Instance methods are not supported`` () =
   let config = { 
     ParseIntrinsic = fun f -> if f.FullName.EndsWith("failwith") then Some() else None
     GenerateIntrinsicCode = fun _ _ -> "0"
-    ReplaceSymbols = None }
+    ReplaceFunctions = fun _ -> id
+    FSharpPrelude = None
+    ShovelPrelude = None }
   fsharpSourcesToShovel config
     ["a.fs","""
       module M

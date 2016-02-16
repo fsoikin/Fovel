@@ -1,7 +1,8 @@
 // Warning: generated file; your changes could be lost when a new file is generated.
 #I __SOURCE_DIRECTORY__
 #load "load-references-debug.fsx"
-#load "../AssemblyInfo.fs"
+#load "../Resources.fs"
+      "../AssemblyInfo.fs"
       "../Common.fs"
       "../Error.fs"
       "../Expr.fs"
@@ -13,6 +14,7 @@
       "../SymbolGen.fs"
       "../FSCompiler.fs"
       "../CodeGen.fs"
-      "../CoreLib.fs"
-      "../Integration.fs"
       "../CoreLib.FSharp.fs"
+      "../CoreLib.fs"
+      "../Validation.fs"
+      "../Integration.fs"

@@ -2,86 +2,100 @@
 open Fovel
 open Fovel.Gen
 open Fovel.Gen.Expr
+open Microsoft.FSharp.Compiler
 
 let private (|CoreFunction|_|) name fn = Expr.Intrinsics.(|Fn|_|) <| sprintf "Microsoft.FSharp.Core.%s" name <| fn
+let private (|SeqFn|_|) name = Expr.Intrinsics.(|Fn|_|) <| sprintf "Microsoft.FSharp.Collections.Seq.%s" name
+let private (|ArrFn|_|) name = Expr.Intrinsics.(|Fn|_|) <| sprintf "Microsoft.FSharp.Collections.Array.%s" name
 
-module SeqIntrinsic =
+let getAttribute<'typ> attrs = 
+  attrs |> Seq.tryFind (fun (a: System.Reflection.CustomAttributeData) -> a.AttributeType = typeof<'typ>) 
 
-  type Intrinsic = Range | RangeStep | ToArray | ToList | Seq
+let getFirstArg<'argType> (attr: System.Reflection.CustomAttributeData) : 'argType option = 
+  attr.ConstructorArguments |> Seq.choose (fun a -> if a.ArgumentType = typeof<'argType> then Some (unbox a.Value) else None) |> Seq.tryHead
 
-  let private (|SeqFn|_|) name = Expr.Intrinsics.(|Fn|_|) <| sprintf "Microsoft.FSharp.Collections.Seq.%s" name
+let moduleName (moduleType: System.Type) =
+  let moduleSuffix =
+    getAttribute<CompilationRepresentationAttribute> moduleType.CustomAttributes
+    |> Option.bind getFirstArg<CompilationRepresentationFlags>
+    |> Option.map (fun a -> (a &&& CompilationRepresentationFlags.ModuleSuffix) <> CompilationRepresentationFlags.None)
+    |> Option.orElse false
+  let name = moduleType.Name
+  if moduleSuffix && name.EndsWith("Module") then name.Substring(0, name.Length-6) else name
 
-  let (|Parse|_|) = function
-  | CoreFunction "Operators.( .. )" -> Some Range
-  | CoreFunction "Operators.( .. .. )" -> Some RangeStep
-  | CoreFunction "Operators.seq" -> Some Seq
-  | SeqFn "toArray" -> Some ToArray
-  | SeqFn "toList" -> Some ToArray
+let rec fullModuleName (moduleType: System.Type) =
+  if moduleType.IsNested 
+    then sprintf "%s.%s" (fullModuleName moduleType.DeclaringType) (moduleName moduleType) 
+    else sprintf "%s.%s" moduleType.Namespace (moduleName moduleType)
+
+let quotedFnFullName = function
+  | FSharp.Quotations.Patterns.Call (_,f,_) -> 
+    let name = 
+      f.CustomAttributes |> getAttribute<CompilationSourceNameAttribute> |> Option.bind getFirstArg<string>
+      |> Option.orElse f.Name
+    let name = 
+      if PrettyNaming.IsMangledOpName name
+        then sprintf "( %s )" <| PrettyNaming.DecompileOpName name 
+        else name
+    Some <| sprintf "%s.%s" (fullModuleName f.DeclaringType) name
+
   | _ -> None
 
-  let code = function
-  | Range, [from;to'] -> sprintf "__core.range( %s, %s )" from to'
-  | RangeStep, [from;step;to'] -> sprintf "__core.rangeStep( %s, %s, %s )" from step to'
-  | Seq, [s] -> sprintf "__core.id( %s )" s
-  | ToArray, [arg] -> arg
-  | ToList, [arg] -> failwith "boo"
-  | intr, args -> sprintf "panic('Intrinsic %A applied with incorrect number of arguments %d')" intr (List.length args)
+let sameFullName a b = 
+#if INTERACTIVE
+  let sanitize (s: string) = if s.StartsWith "FSI_" then s.Substring( s.IndexOf('.')+1 ) else s
+#else
+  let sanitize = id
+#endif
+  (sanitize a) = (sanitize b)
 
-module ArrayIntrinsic =
-
-  type Intrinsic = Length
-
-  let private (|ArrFn|_|) name = Expr.Intrinsics.(|Fn|_|) <| sprintf "Microsoft.FSharp.Collections.Array.%s" name
-
-  let (|Parse|_|) = function
-  | ArrFn "length" -> Some Length
+let (|Fn|_|) quote fn = 
+  match quotedFnFullName quote with 
+  | Some name when sameFullName name (FSharp.fnFullName fn) -> Some() 
   | _ -> None
-
-  let code = function
-  | Length, [a] -> sprintf "length( %s )" a
-  | intr, args -> sprintf "panic('Intrinsic %A applied with incorrect number of arguments %d')" intr (List.length args)
 
 type CoreLibIntrinsic<'CustomIntrinsic> =
-  | Seq of SeqIntrinsic.Intrinsic
-  | Array of ArrayIntrinsic.Intrinsic
+  | ArrayLength
+  | ArrayCreate
+  | ArraySet
+  | SeqCreate
   | FailWith
   | Custom of 'CustomIntrinsic
 
 let parseIntrinsic (|ParseCustomIntrinsic|_|) = function
   | ParseCustomIntrinsic custom -> Some (Custom custom)
-  | SeqIntrinsic.Parse seq -> Some (Seq seq)
-  | ArrayIntrinsic.Parse arr -> Some (Array arr)
-  | CoreFunction "Operators.failwith" -> Some FailWith
+  | Fn <@ Array.length [||] @> -> Some ArrayLength
+  | Fn <@ LanguagePrimitives.IntrinsicFunctions.SetArray [|0|] 0 0 @> -> Some ArraySet
+  | Fn <@ Fovel.Core.Array.create 0 @> -> Some ArrayCreate
+  | Fn <@ failwith "" @> -> Some FailWith
+  | Fn <@ Operators.seq [] @> -> Some SeqCreate
   | _ -> None
 
 let intrinsicCode customIntrinsicCode intr args =
   match intr, args with
   | Custom c, _ -> customIntrinsicCode c args
-  | Seq seq, args -> SeqIntrinsic.code (seq, args)
-  | Array arr, args -> ArrayIntrinsic.code (arr, args)
+  | ArrayLength, [a] -> sprintf "length( %s )" a
+  | ArrayCreate, [size] -> sprintf "arrayN( %s )" size
+  | ArraySet, [arr; idx; value] -> sprintf "(%s).[%s] = (%s)" arr idx value
+  | SeqCreate, [s] -> s
   | FailWith, args -> sprintf "panic( %s )" (defaultArg (List.tryHead args) "")
+  | intr, args -> sprintf "panic( 'Intrinsic %A applied to %d args' )" intr (List.length args)
 
 let wrapInstrinsics (parseCustomIntrinsic: 'a -> 'b option, customIntrinsicCode: 'b -> string list -> string) = 
   (parseIntrinsic parseCustomIntrinsic, intrinsicCode customIntrinsicCode)
 
-let [<Literal>] ShovelCode = """
-  var __core = {
+let replaceSymbols allFns fn = 
+  let findFnByFullName fullName = Seq.tryFind (FSharp.fnFullName >> sameFullName fullName) allFns
+  match fn with
+    | Fn <@ ( .. ) 0 1 @>                       -> Some <@@ Fovel.Core.Seq.range 0 1 @@>
+    | Fn <@ ( .. .. ) 0 1 2 @>                  -> Some <@@ Fovel.Core.Seq.rangeStep 0 1 2 @@>
+    | Fn <@ Seq.toArray [] @>                   -> Some <@@ Fovel.Core.Seq.toArray Fovel.Core.Seq.Empty @@>
+    | Fn <@ Seq.toList [] @>                    -> Some <@@ Fovel.Core.Seq.toList Fovel.Core.Seq.Empty @@>
+    | Fn <@ List.fold (fun _ _ -> ()) () [] @>  -> Some <@@ Fovel.Core.List.fold (fun _ _ -> ()) () [] @@>
+    | Fn <@ List.map (fun _ -> ()) [] @>        -> Some <@@ Fovel.Core.List.map (fun _ -> ()) @@>
+    | _ -> None
+  |> Option.bind quotedFnFullName
+  |> Option.bind findFnByFullName
+  |> Option.orElse fn
 
-    var appendRange = fn(arr, from, to, step) {
-      if from == to arr
-      else {
-        push(arr, from)
-        if from > to appendRange(arr, from-step, to, step) 
-        else appendRange(arr, from+step, to, step)
-      }
-    }
-
-    var fns = hash(
-      'id', fn x x,
-      'rangeStep', fn(from, to, step) appendRange(array(), from, to, step),
-      'range', fn(from, to) __core.rangeStep(from, to, 1)
-    )
-
-    hashToStruct( defstruct(keys(fns)), fns )
-  }
-"""
+let prelude() = "[<AutoOpen>]\n" + Resources.CoreLib()

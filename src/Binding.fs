@@ -10,31 +10,29 @@ type Binding<'Type, 'Symbol, 'Intrinsic> = {
   *)
   Fn: ('Symbol * ('Symbol * 'Type) list list) option; 
 
-  EnclosingType: 'Type option;
-
-  // Body of the function or value
+  /// Body of the function or value
   Expr: E<'Type, 'Symbol, 'Intrinsic> }
 
 type Program<'Type, 'Symbol, 'Intrinsic> = Binding<'Type, 'Symbol, 'Intrinsic> list
 
 module Binding =
+
+  let expr { Expr = e } = e
+
   let mapType f b = 
     let mapSym (sym, typ) = sym, f typ
     let mapLeftPart (sym, args) = sym, (args |> List.map (List.map mapSym))
     { Binding.Fn = b.Fn |> Option.map mapLeftPart
-      EnclosingType = b.EnclosingType |> Option.map f
       Expr = b.Expr |> Expr.mapType f }
 
   let mapSymbol f b =
     let mapSym (sym, typ) = f sym, typ
     let mapLeftPart (sym, args) = f sym, (args |> List.map (List.map mapSym))
     { Binding.Fn = b.Fn |> Option.map mapLeftPart
-      EnclosingType = b.EnclosingType
       Expr = b.Expr |> Expr.mapSymbol f }
 
   let mapIntrinsic f b =
     { Binding.Fn = b.Fn
-      EnclosingType = b.EnclosingType
       Expr = b.Expr |> Expr.mapIntrinsic f }
 
   let allSymbols { Binding.Fn = fn; Expr = e } =
@@ -49,7 +47,4 @@ module Binding =
       | Some (_, args) -> List.collect (List.map snd) args
       | None -> []
 
-    List.concat
-      [ typesFromLeftPart b.Fn
-        Option.toList b.EnclosingType
-        Expr.allTypes b.Expr ]
+    (typesFromLeftPart b.Fn) @ (Expr.allTypes b.Expr)

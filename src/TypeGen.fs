@@ -22,7 +22,7 @@ let private typeFromEntity (e: FSharpEntity) =
     Some <| Type.Record (e.LogicalName, fields)
 
   | _ ->
-    let name = e.TryFullName |> Option.orElse (fun () -> Some e.CompiledName) |> Option.get
+    let name = e.TryFullName |> Option.orElse e.CompiledName
     match name with
     | "System.Int32" -> Some Type.Int
     | "System.Double" | "System.Float" -> Some Type.Float

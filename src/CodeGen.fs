@@ -96,7 +96,7 @@ let rec exprCode intrinsicCode expr =
 
   | E.UnionCase(NamedType (unionType,_), case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
   | E.UnionCaseTest(union, NamedType (unionType,_), case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
-  | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s)['%s']" (r union) field
+  | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s).%s" (r union) field
 
   | E.NewRecord(NamedType (recordType,_), fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
   | E.RecordFieldGet(_, record, field) -> sprintf "(%s).%s" (r record) field
@@ -108,7 +108,14 @@ let rec exprCode intrinsicCode expr =
   | E.InfixOp(leftArg, op, rightArg) -> sprintf "(%s) %s (%s)" (r leftArg) (infixOpCode op) (r rightArg)
   | E.SymRef sym -> sym
   | E.Const(c, _) -> constCode c
-  | E.Let(var, varValue, body) -> sprintf "{ var %s = (%s) %s }" var (r varValue) (r body)
+  
+  | E.Let(bindings, body) -> 
+    let formatBinding (sym, expr) = sprintf "var %s = (%s)" sym (r expr)
+    let bindings = bindings |> Seq.map formatBinding |> String.concat "\n"
+    sprintf "{ %s %s }" bindings (r body)
+
+  | E.Sequence es -> es |> Seq.map r |> String.concat "\n"
+
   | E.Conditional(test, then', else') -> sprintf "if (%s) (%s) else (%s)" (r test) (r then') (r else')
   | E.Call(func, args) -> sprintf "(%s)(%s)" (r func) (rl args)
 

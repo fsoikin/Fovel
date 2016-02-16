@@ -8,19 +8,25 @@ type Config<'Intrinsic> =
   {
     ParseIntrinsic: FSharpMemberOrFunctionOrValue -> 'Intrinsic option
     GenerateIntrinsicCode: 'Intrinsic -> Code list -> Code
-    ReplaceSymbols: (FSharpMemberOrFunctionOrValue -> FSharpMemberOrFunctionOrValue) option
+    ReplaceFunctions: FSharpMemberOrFunctionOrValue seq -> FSharpMemberOrFunctionOrValue -> FSharpMemberOrFunctionOrValue
+    FSharpPrelude: Code option
+    ShovelPrelude: Code option
   }
 
 module Config =
   let withCoreLib config = {
     ParseIntrinsic = CoreLib.parseIntrinsic config.ParseIntrinsic
     GenerateIntrinsicCode = CoreLib.intrinsicCode config.GenerateIntrinsicCode
-    ReplaceSymbols = config.ReplaceSymbols }
+    ReplaceFunctions = fun all -> (CoreLib.replaceSymbols all) >> (config.ReplaceFunctions all)
+    FSharpPrelude = Some (CoreLib.prelude() + (config.FSharpPrelude |> Option.orElse ""))
+    ShovelPrelude = config.ShovelPrelude }
 
   let WithoutCoreLib = { 
     ParseIntrinsic = fun _ -> None
     GenerateIntrinsicCode = fun () _ -> ""
-    ReplaceSymbols = None }
+    ReplaceFunctions = fun _ -> id
+    FSharpPrelude = None
+    ShovelPrelude = None }
 
   let Default = WithoutCoreLib |> withCoreLib
 
@@ -33,16 +39,25 @@ let fsharpProgramToFovel parseIntrinsic program =
 let eraseFSharpEntities program =
   program |> Symbol.genSymbols |> Type.genTypes |*> CodeGen.assignTypeNames
 
-let generateShovelCode generateIntrinsicCode = CodeGen.programCode (CodeGen.exprCode generateIntrinsicCode)
+let generateShovelCode generateIntrinsicCode prelude = 
+  let prependPrelude = match prelude with Some code -> (+) code | None -> id
+  CodeGen.programCode (CodeGen.exprCode generateIntrinsicCode) >> prependPrelude
 
-let replaceSymbols replaceCall program =
-  match replaceCall with
-  | Some f -> program |> List.map (Binding.mapExpr (Expr.mapSymbol f))
-  | None -> program
+let replaceFunctions replaceCall program = 
+  let functionOfBinding = function { Binding.Fn = Some(fn,_) } -> Some fn | _ -> None
+  let allFunctions = program |> List.choose functionOfBinding |> List.toSeq
+  let replace fn = if FSharp.isFunction fn then replaceCall allFunctions fn else fn
+  program |> List.map (Binding.mapExpr <| Expr.mapSymbol replace)
 
 let fsharpSourcesToShovel config sources =
-  FSCompiler.parseProgram sources
+  let prelude = 
+    config.FSharpPrelude 
+    |> Option.map (fun code -> ["_prelude.fs", code]) 
+    |> Option.orElse []
+
+  FSCompiler.parseProgram (prelude @ sources)
   >>= fsharpProgramToFovel config.ParseIntrinsic
-  |*> replaceSymbols config.ReplaceSymbols
+  |*> replaceFunctions config.ReplaceFunctions
+  >>= Validation.allValidations
   >>= eraseFSharpEntities
-  |*> generateShovelCode config.GenerateIntrinsicCode
+  |*> generateShovelCode config.GenerateIntrinsicCode config.ShovelPrelude

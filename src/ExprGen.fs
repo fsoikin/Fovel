@@ -33,7 +33,8 @@ module Intrinsics =
     let isFn (fnName, i) = if fn = fnName then Some i else None
     defs |> Seq.choose isFn |> Seq.tryHead
 
-let (|ExternalSymbol|_|) (s: FSharpMemberOrFunctionOrValue) = if s.Assembly.FileName = None then None else Some s
+let isExternalSymbol (s: FSharpMemberOrFunctionOrValue) = s.Assembly.FileName.IsSome
+let referencedExternalSymbols expr = Expr.allSymbols expr |> Seq.filter isExternalSymbol
 
 let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue list * FSharpExpr) list ) (expr: FSharpExpr) =
   let r = parseDecisionTree parseExpr branches
@@ -48,10 +49,9 @@ let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue li
       Result.fail <| Error.DecisionTreeBindingsNumberMismatch (branchSymbols.Length, bindings.Length, branchExpr)
     else
       let branchExpr = parseExpr branchExpr
-      let combineLet nextExpr (binding, symbol) = E.Let <!! (Result.retn symbol, binding, nextExpr)
-        
-      Seq.zip bindings branchSymbols 
-      |> Seq.fold combineLet branchExpr
+      let makeBinding (sym, binding) = binding |*> (fun b -> sym,b)
+      let bindings = Seq.zip branchSymbols bindings |> Result.seqMap makeBinding
+      E.Let <! (bindings, branchExpr)
 
   | _ -> Result.fail <| Error.MalformedDecisionTree expr
 
@@ -71,11 +71,6 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.Call (None, Intrinsics.TupleGet idx, _, _, [tupl]) -> E.TupleGet <!! (retn tupl.Type, retn idx, r tupl)
   | BasicPatterns.Call (None, Intrinsics.Fn "Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicFunctions.GetArray", _, _, [arr;idx]) -> E.ArrayElement <! (r arr, r idx)
 
-  // Unsupported patterns - handle these right after intrinsics, but before everything else
-  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.InstanceMethodsNotSupported fn)
-  | BasicPatterns.Call (_, ExternalSymbol v, _, _, _) 
-  | BasicPatterns.Value (ExternalSymbol v) -> Result.fail (Error.CannotReferenceExternalSymbol v)
-
   // Function calls
   | BasicPatterns.Call (None, fn, _, _, []) -> retn (E.SymRef fn)
   | BasicPatterns.Call (None, fn, _, _, args) -> E.Call <! (retn (E.SymRef fn), rl args)
@@ -88,8 +83,21 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   // Primitives
   | BasicPatterns.Const (c, typ) -> retn <| E.Const( c, typ )
   | BasicPatterns.Value v -> retn (E.SymRef v)
-  | BasicPatterns.Let ((sym,expr), inExpr) -> E.Let <!! (retn sym, r expr, r inExpr)
   | BasicPatterns.Lambda (sym, expr) -> E.Function <! (retn sym, r expr)
+
+  // Let
+  | BasicPatterns.Let ((sym,expr), inExpr) -> 
+    let binding = r expr |*> (fun e -> [sym, e])
+    E.Let <! (binding, r inExpr)
+
+  | BasicPatterns.LetRec (bindings, inExpr) -> 
+    let binding (sym,expr) = r expr |*> (fun e -> sym, e)
+    let bindings = bindings |> Result.seqMap binding
+    E.Let <! (bindings, r inExpr)
+
+  | BasicPatterns.Sequential (e1, e2) -> 
+    let makeSeq e1 e2 = retn <| E.Sequence [e1; e2]
+    makeSeq <!> (r e1) <*> (r e2)
 
   // Branching
   | BasicPatterns.IfThenElse (test, thn, els) -> E.Conditional <!! (r test, r thn, r els)

@@ -4,6 +4,14 @@ open FSharpx.Collections
 type Identifier = string
 type Code = string
 
+module Option =
+  let orElse x = function None -> x | Some y -> y
+
+module FSharp =
+  open Microsoft.FSharp.Compiler.SourceCodeServices
+  let fnFullName (fn: FSharpMemberOrFunctionOrValue) = fn.FullName
+  let isFunction (fn: FSharpMemberOrFunctionOrValue) = not (fn.CurriedParameterGroups |> Seq.isEmpty)
+
 [<AutoOpen>]
 module Common =
 

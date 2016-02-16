@@ -17,12 +17,12 @@ let bindingToFovel parseExpr = function
 
   | Some (fn, args), body -> 
       parseExpr body 
-      |> Result.map (fun expr -> { Binding.Fn = Some (fn, argsToFovel args); EnclosingType = None; Expr = expr })
+      |> Result.map (fun expr -> { Binding.Fn = Some (fn, argsToFovel args); Expr = expr })
       |> Some
 
   | None, body -> 
     parseExpr body
-    |> Result.map (fun expr -> { Binding.Fn = None; EnclosingType = None; Expr = expr })
+    |> Result.map (fun expr -> { Binding.Fn = None; Expr = expr })
     |> Some
 
 let programToFovel parseExpr fsProgram : Result<Program<_,_,_>,_> =
@@ -32,11 +32,12 @@ let programToFovel parseExpr fsProgram : Result<Program<_,_,_>,_> =
 
 let excludeIntrinsicDefinitions parseIntrinsic = 
   let isIntrinsicBinding = function
-    | { Fn = Some (var, _) } -> parseIntrinsic var |> Option.isSome
+    | { Binding.Fn = Some (var, _) } -> parseIntrinsic var |> Option.isSome
     | _ -> false
   List.filter (not << isIntrinsicBinding)
 
-let mapExpr f binding = {
+let inline mapExpr f binding = {
   Binding.Fn = binding.Fn
-  EnclosingType = binding.EnclosingType
   Expr = f binding.Expr }
+
+let inline referencedExternalSymbols b = b |> Binding.expr |> Expr.referencedExternalSymbols

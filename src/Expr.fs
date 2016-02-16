@@ -21,10 +21,13 @@ type E<'Type, 'Symbol, 'Intrinsic> =
   | InfixOp of leftArg: E<'Type, 'Symbol, 'Intrinsic> * op: InfixOpKind * rightArg: E<'Type, 'Symbol, 'Intrinsic>
   | SymRef of 'Symbol
   | Const of obj * 'Type
-  | Let of var: 'Symbol * varValue: E<'Type, 'Symbol, 'Intrinsic> * body: E<'Type, 'Symbol, 'Intrinsic>
+  | Let of ('Symbol * E<'Type, 'Symbol, 'Intrinsic>) list * body: E<'Type, 'Symbol, 'Intrinsic>
+  | Sequence of E<'Type, 'Symbol, 'Intrinsic> list
   | Conditional of test: E<'Type, 'Symbol, 'Intrinsic> * then': E<'Type, 'Symbol, 'Intrinsic> * else': E<'Type, 'Symbol, 'Intrinsic>
 
 module Expr =
+  let private mapLetBindings fSym fExpr = List.map (fun (sym, expr) -> fSym sym, fExpr expr)
+
   let rec mapType f e = 
     let r = mapType f
     let rl = List.map r
@@ -44,7 +47,8 @@ module Expr =
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
     | E.SymRef s -> E.SymRef s
     | E.Const (o, t) -> E.Const( o, f t )
-    | E.Let (var, value, body) -> E.Let( var, r value, r body )
+    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings id r, r body )
+    | E.Sequence es -> E.Sequence (rl es)
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
 
   let rec mapSymbol f e = 
@@ -66,7 +70,8 @@ module Expr =
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
     | E.SymRef s -> E.SymRef (f s)
     | E.Const (o, t) -> E.Const( o, t )
-    | E.Let (var, value, body) -> E.Let( f var, r value, r body )
+    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings f r, r body )
+    | E.Sequence es -> E.Sequence (rl es)
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
 
   let rec mapIntrinsic f e = 
@@ -88,20 +93,22 @@ module Expr =
     | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
     | E.SymRef s -> E.SymRef s
     | E.Const (o, t) -> E.Const( o, t )
-    | E.Let (var, value, body) -> E.Let( var, r value, r body )
+    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings id r, r body )
+    | E.Sequence es -> E.Sequence (rl es)
     | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
 
   let rec allTypes expr = 
     let r = allTypes
     let rl = List.collect r
     match expr with
-    | E.Intrinsic (_, args) -> rl args
+    | E.Intrinsic (_, es) | E.Sequence es -> rl es
     | E.NewTuple (t, items) | E.UnionCase (t, _, items) | E.NewRecord (t, items) | E.NewArray (t, items) ->  t :: (rl items)
     | E.UnionCaseTest (e, t, _) | E.UnionCaseGet (e, t, _, _) | E.TupleGet (t, _, e) | E.RecordFieldGet (t, e, _) -> t :: (r e)
     | E.ArrayElement (arr, idx) -> rl [arr; idx]
     | E.Function (_, body) -> r body
     | E.Call (fn, args) -> (r fn) @ (rl args)
-    | E.InfixOp (e1, _, e2) | E.Let (_, e1, e2) -> (r e1) @ (r e2)
+    | E.InfixOp (e1, _, e2) -> (r e1) @ (r e2)
+    | E.Let (bindings, body) -> body :: (bindings |> List.map snd) |> rl
     | E.SymRef _ -> []
     | E.Const (_, t) -> [t]
     | E.Conditional (test, thn, els) -> rl [test; thn; els]
@@ -110,12 +117,14 @@ module Expr =
     let r = allSymbols
     let rl = List.collect r
     match expr with
-    | E.Intrinsic (_, args) -> rl args
+    | E.Intrinsic (_, es) | E.Sequence es -> rl es
     | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) | E.NewArray (_, items) ->  rl items
-    | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.Function (_, e) | E.RecordFieldGet (_, e, _) -> r e
+    | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.RecordFieldGet (_, e, _) -> r e
+    | E.Function (s, e) -> s :: (r e)
     | E.ArrayElement (arr,idx) -> rl [arr; idx]
     | E.Call (e1, e2) -> (r e1) @ (rl e2)
-    | E.InfixOp (e1, _, e2) | E.Let (_, e1, e2) -> (r e1) @ (r e2)
+    | E.InfixOp (e1, _, e2)  -> (r e1) @ (r e2)
+    | E.Let (bindings, body) -> (bindings |> List.map fst) @ ( body :: (bindings |> List.map snd) |> rl )
     | E.SymRef sym -> [sym]
     | E.Const _ -> []
     | E.Conditional (test, thn, els) -> rl [test; thn; els]
