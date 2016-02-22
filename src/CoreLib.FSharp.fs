@@ -6,6 +6,8 @@ let inline fst (x,_) = x
 let inline snd (_,x) = x
 let inline (>>) f g x = g (f x)
 let inline (<<) f g x = f (g x)
+let inline (|>) x f = f x
+let inline (<|) f x = f x
 
 module List =
   let inline Cons x xs = x::xs

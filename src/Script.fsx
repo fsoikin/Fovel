@@ -16,6 +16,7 @@ module Resources =
 #load "CodeGen.fs"
 #load "CoreLib.FSharp.fs"
 #load "CoreLib.fs"
+#load "Transformation.fs"
 #load "Validation.fs"
 #load "Integration.fs"
 
@@ -25,17 +26,19 @@ open Microsoft.FSharp.Compiler.SourceCodeServices
 
 let ints = """
   module XX
-  let a = [1..3]
+  //let a = [1..3]
   """
 
 let src = """
       module X
-      type U = U of int | W of string
-
-      let x = U 0
-      let y = W "1"
-      let z = match x with | W a -> a | U _ -> ""
-      let r = XX.a |> List.map (fun x -> x+2)
+//      type U = U of int | W of string with static member X: string = "abc"
+//
+//      let inline f< ^t when ^t: (static member X: string)> () = (^t: (static member X: string)())
+//      let y = f<U>
+//      let z = y()
+      let inline f x = [x]
+      let inline ap f x = f x
+      let z = ap f 10 
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
@@ -44,3 +47,10 @@ let srcs = [ "ints.fs", ints; "a.fs", src]
 let e = 
   fsharpSourcesToShovel Config.Default srcs 
   |> Result.mapError Error.formatAll
+
+//let ee =
+//  srcs 
+//  |> FSCompiler.parseProgram
+//  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
+//  
+//let eee = ee |*> Transformation.inlineFunctions

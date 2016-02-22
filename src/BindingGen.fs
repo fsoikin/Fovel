@@ -9,11 +9,10 @@ let isImplicitConstructor (fn: FSharpMemberOrFunctionOrValue) = fn.IsImplicitCon
 let skipBinding fn = isInstanceMember fn || isImplicitConstructor fn
 
 let argToFovel (arg: FSharpMemberOrFunctionOrValue) = arg, arg.FullType
-let argsToFovel<'a> = List.map (List.map argToFovel)
+let argsToFovel<'a> = List.collect (List.map argToFovel)
 
 let bindingToFovel parseExpr = function
   | Some (fn, _), _ when skipBinding fn -> None
-  | Some (fn, _), _ when isInstanceMember fn -> Some <| Result.fail (Error.InstanceMethodsNotSupported fn)
 
   | Some (fn, args), body -> 
       parseExpr body 

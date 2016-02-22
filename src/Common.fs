@@ -9,8 +9,12 @@ module Option =
 
 module FSharp =
   open Microsoft.FSharp.Compiler.SourceCodeServices
-  let fnFullName (fn: FSharpMemberOrFunctionOrValue) = fn.FullName
-  let isFunction (fn: FSharpMemberOrFunctionOrValue) = not (fn.CurriedParameterGroups |> Seq.isEmpty)
+  type fn = FSharpMemberOrFunctionOrValue
+  let fnFullName (fn: fn) = fn.FullName
+  let isFunction (fn: fn) = fn.CurriedParameterGroups.Count > 0
+  let isInline (fn: fn) = fn.InlineAnnotation = FSharpInlineAnnotation.AlwaysInline || fn.InlineAnnotation = FSharpInlineAnnotation.PseudoValue
+  let typeParameters (fn: fn) = fn.GenericParameters :> seq<_>
+  let isGeneric (fn: fn) = fn.GenericParameters.Count > 0
 
 [<AutoOpen>]
 module Common =

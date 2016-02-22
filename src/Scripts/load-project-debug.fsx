@@ -16,5 +16,6 @@
       "../CodeGen.fs"
       "../CoreLib.FSharp.fs"
       "../CoreLib.fs"
+      "../Transformation.fs"
       "../Validation.fs"
       "../Integration.fs"

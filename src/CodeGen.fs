@@ -87,7 +87,7 @@ let rec exprCode intrinsicCode expr =
   | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
 
   | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
-  | E.TupleGet(_, index, tuple) -> sprintf "%s[%d]" <| r tuple <| index
+  | E.TupleGet(_, index, tuple) -> sprintf "{%s}[%d]" <| r tuple <| index
 
   // Single-case unions are erased:
   | E.UnionCase(NamedType (_,SingleCaseUnion), _, [value]) -> r value
@@ -96,28 +96,29 @@ let rec exprCode intrinsicCode expr =
 
   | E.UnionCase(NamedType (unionType,_), case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
   | E.UnionCaseTest(union, NamedType (unionType,_), case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
-  | E.UnionCaseGet(union, _, _, field) -> sprintf "(%s).%s" (r union) field
+  | E.UnionCaseGet(union, _, _, field) -> sprintf "{%s}.%s" (r union) field
 
   | E.NewRecord(NamedType (recordType,_), fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
-  | E.RecordFieldGet(_, record, field) -> sprintf "(%s).%s" (r record) field
+  | E.RecordFieldGet(_, record, field) -> sprintf "{%s}.%s" (r record) field
 
   | E.NewArray (_, els) -> sprintf "array( %s )" (rl els)
-  | E.ArrayElement (arr, idx) -> sprintf "(%s).%s" (r arr) (r idx)
+  | E.ArrayElement (arr, idx) -> sprintf "{%s}.%s" (r arr) (r idx)
 
   | E.Function(parameter, body) -> sprintf "fn(%s) %s" parameter (r body)
-  | E.InfixOp(leftArg, op, rightArg) -> sprintf "(%s) %s (%s)" (r leftArg) (infixOpCode op) (r rightArg)
+  | E.InfixOp(leftArg, op, rightArg) -> sprintf "{%s} %s {%s}" (r leftArg) (infixOpCode op) (r rightArg)
   | E.SymRef sym -> sym
   | E.Const(c, _) -> constCode c
   
   | E.Let(bindings, body) -> 
-    let formatBinding (sym, expr) = sprintf "var %s = (%s)" sym (r expr)
+    let formatBinding (sym, expr) = sprintf "var %s = {%s}" sym (r expr)
     let bindings = bindings |> Seq.map formatBinding |> String.concat "\n"
-    sprintf "{ %s %s }" bindings (r body)
+    sprintf "{ %s\n%s }" bindings (r body)
 
   | E.Sequence es -> es |> Seq.map r |> String.concat "\n"
 
-  | E.Conditional(test, then', else') -> sprintf "if (%s) (%s) else (%s)" (r test) (r then') (r else')
-  | E.Call(func, args) -> sprintf "(%s)(%s)" (r func) (rl args)
+  | E.Conditional(test, then', else') -> sprintf "if {%s} {%s} else {%s}" (r test) (r then') (r else')
+  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rl args)
+  | E.TraitCall _ -> sprintf "panic( 'Unresolved static generic constraint' )"
 
 let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
   let expr = exprCode expr
@@ -126,7 +127,7 @@ let bindingCode exprCode { Binding.Fn = fn; Expr = expr } =
   | None -> expr
   | Some (fn, []) -> sprintf "var %s = %s" fn expr
   | Some (fn, args) -> 
-    let args = args |> Seq.collect id |> Seq.map fst |> String.concat ", "
+    let args = args |> Seq.map fst |> String.concat ", "
     sprintf "var %s = fn(%s) %s" fn args expr
 
 let programCode exprCode program = 

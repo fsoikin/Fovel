@@ -17,7 +17,8 @@ type E<'Type, 'Symbol, 'Intrinsic> =
   | NewArray of elementType: 'Type * elements: E<'Type, 'Symbol, 'Intrinsic> list
   | ArrayElement of array: E<'Type, 'Symbol, 'Intrinsic> * idx: E<'Type, 'Symbol, 'Intrinsic>
   | Function of parameter: 'Symbol * body: E<'Type, 'Symbol, 'Intrinsic>
-  | Call of func: E<'Type, 'Symbol, 'Intrinsic> * args: E<'Type, 'Symbol, 'Intrinsic> list
+  | Call of func: E<'Type, 'Symbol, 'Intrinsic> * typeArgs: 'Type list * args: E<'Type, 'Symbol, 'Intrinsic> list
+  | TraitCall of types: 'Type list * membr: Identifier * args: E<'Type, 'Symbol, 'Intrinsic> list
   | InfixOp of leftArg: E<'Type, 'Symbol, 'Intrinsic> * op: InfixOpKind * rightArg: E<'Type, 'Symbol, 'Intrinsic>
   | SymRef of 'Symbol
   | Const of obj * 'Type
@@ -28,74 +29,32 @@ type E<'Type, 'Symbol, 'Intrinsic> =
 module Expr =
   let private mapLetBindings fSym fExpr = List.map (fun (sym, expr) -> fSym sym, fExpr expr)
 
-  let rec mapType f e = 
-    let r = mapType f
-    let rl = List.map r
+  let rec cata fExpr fSym fTyp fIntrinsic e = 
+    let fl = List.map fExpr
     match e with
-    | E.Intrinsic (i, args) -> E.Intrinsic(i, rl args)
-    | E.NewTuple (t, items) -> E.NewTuple( f t, rl items )
-    | E.TupleGet (t, ix, tup) -> E.TupleGet( f t, ix, r tup )
-    | E.UnionCase (t, case, fields) -> E.UnionCase( f t, case, rl fields )
-    | E.UnionCaseTest (u, t, case) -> E.UnionCaseTest( r u, f t, case )
-    | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, f t, case, field )
-    | E.NewRecord (t, fields) -> E.NewRecord( f t, rl fields )
-    | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (f typ, r record, field)
-    | E.NewArray (typ, els) -> E.NewArray (f typ, rl els)
-    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
-    | E.Function (p, body) -> E.Function( p, r body )
-    | E.Call (fn, args) -> E.Call( r fn, rl args )
-    | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
-    | E.SymRef s -> E.SymRef s
-    | E.Const (o, t) -> E.Const( o, f t )
-    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings id r, r body )
-    | E.Sequence es -> E.Sequence (rl es)
-    | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
+    | E.ArrayElement (arr, idx) -> E.ArrayElement (fExpr arr, fExpr idx)
+    | E.Call (fn, typeArgs, args) -> E.Call( fExpr fn, List.map fTyp typeArgs, fl args )
+    | E.TraitCall (typs, membr, args) -> E.TraitCall ( List.map fTyp typs, membr, List.map fExpr args )
+    | E.InfixOp (a, op, b) -> E.InfixOp( fExpr a, op, fExpr b )
+    | E.Sequence es -> E.Sequence (fl es)
+    | E.Conditional (test, thn, els) -> E.Conditional( fExpr test, fExpr thn, fExpr els )
+    | E.NewTuple (t, items) -> E.NewTuple( fTyp t, fl items )
+    | E.TupleGet (t, ix, tup) -> E.TupleGet( fTyp t, ix, fExpr tup )
+    | E.UnionCase (t, case, fields) -> E.UnionCase( fTyp t, case, fl fields )
+    | E.UnionCaseTest (u, t, case) -> E.UnionCaseTest( fExpr u, fTyp t, case )
+    | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( fExpr u, fTyp t, case, field )
+    | E.NewRecord (t, fields) -> E.NewRecord( fTyp t, fl fields )
+    | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (fTyp typ, fExpr record, field)
+    | E.NewArray (typ, els) -> E.NewArray (fTyp typ, fl els)
+    | E.Intrinsic (i, args) -> E.Intrinsic(fIntrinsic i, fl args)
+    | E.Const (o, t) -> E.Const( o, fTyp t )
+    | E.Function (p, body) -> E.Function( fSym p, fExpr body )
+    | E.SymRef s -> E.SymRef (fSym s)
+    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings fSym fExpr, fExpr body )
 
-  let rec mapSymbol f e = 
-    let r = mapSymbol f
-    let rl = List.map r
-    match e with
-    | E.Intrinsic (i, args) -> E.Intrinsic(i, rl args)
-    | E.NewTuple (t, items) -> E.NewTuple( t, rl items )
-    | E.TupleGet (t, ix, tup) -> E.TupleGet( t, ix, r tup )
-    | E.UnionCase (t, case, fields) -> E.UnionCase( t, case, rl fields )
-    | E.UnionCaseTest (u, t, case) -> E.UnionCaseTest( r u, t, case )
-    | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, t, case, field )
-    | E.NewRecord (t, fields) -> E.NewRecord( t, rl fields )
-    | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (typ, r record, field)
-    | E.NewArray (typ, els) -> E.NewArray (typ, rl els)
-    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
-    | E.Function (p, body) -> E.Function( f p, r body )
-    | E.Call (fn, args) -> E.Call( r fn, rl args )
-    | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
-    | E.SymRef s -> E.SymRef (f s)
-    | E.Const (o, t) -> E.Const( o, t )
-    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings f r, r body )
-    | E.Sequence es -> E.Sequence (rl es)
-    | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
-
-  let rec mapIntrinsic f e = 
-    let r = mapIntrinsic f
-    let rl = List.map r
-    match e with
-    | E.Intrinsic (i, args) -> E.Intrinsic(f i, rl args)
-    | E.NewTuple (t, items) -> E.NewTuple( t, rl items )
-    | E.TupleGet (t, ix, tup) -> E.TupleGet( t, ix, r tup )
-    | E.UnionCase (t, case, fields) -> E.UnionCase( t, case, rl fields )
-    | E.UnionCaseTest (u, t, case) -> E.UnionCaseTest( r u, t, case )
-    | E.UnionCaseGet (u, t, case, field) -> E.UnionCaseGet( r u, t, case, field )
-    | E.NewRecord (t, fields) -> E.NewRecord( t, rl fields )
-    | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (typ, r record, field)
-    | E.NewArray (typ, els) -> E.NewArray (typ, rl els)
-    | E.ArrayElement (arr, idx) -> E.ArrayElement (r arr, r idx)
-    | E.Function (p, body) -> E.Function( p, r body )
-    | E.Call (fn, args) -> E.Call( r fn, rl args )
-    | E.InfixOp (a, op, b) -> E.InfixOp( r a, op, r b )
-    | E.SymRef s -> E.SymRef s
-    | E.Const (o, t) -> E.Const( o, t )
-    | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings id r, r body )
-    | E.Sequence es -> E.Sequence (rl es)
-    | E.Conditional (test, thn, els) -> E.Conditional( r test, r thn, r els )
+  let rec mapType f e = cata (mapType f) id f id e
+  let rec mapSymbol f e = cata (mapSymbol f) f id id e
+  let rec mapIntrinsic f e = cata (mapIntrinsic f) id id f e
 
   let rec allTypes expr = 
     let r = allTypes
@@ -106,25 +65,28 @@ module Expr =
     | E.UnionCaseTest (e, t, _) | E.UnionCaseGet (e, t, _, _) | E.TupleGet (t, _, e) | E.RecordFieldGet (t, e, _) -> t :: (r e)
     | E.ArrayElement (arr, idx) -> rl [arr; idx]
     | E.Function (_, body) -> r body
-    | E.Call (fn, args) -> (r fn) @ (rl args)
+    | E.Call (fn, typeArgs, args) -> (r fn) @ (rl args) @ typeArgs
+    | E.TraitCall (typs, _, args) -> typs @ (rl args)
     | E.InfixOp (e1, _, e2) -> (r e1) @ (r e2)
     | E.Let (bindings, body) -> body :: (bindings |> List.map snd) |> rl
     | E.SymRef _ -> []
     | E.Const (_, t) -> [t]
     | E.Conditional (test, thn, els) -> rl [test; thn; els]
 
-  let rec allSymbols expr = 
-    let r = allSymbols
-    let rl = List.collect r
-    match expr with
+  let allSymbols expr = 
+    let rec rl es = Seq.collect r es
+    and r = function
     | E.Intrinsic (_, es) | E.Sequence es -> rl es
     | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) | E.NewArray (_, items) ->  rl items
     | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.RecordFieldGet (_, e, _) -> r e
-    | E.Function (s, e) -> s :: (r e)
+    | E.Function (s, e) -> Seq.append [s] (r e)
     | E.ArrayElement (arr,idx) -> rl [arr; idx]
-    | E.Call (e1, e2) -> (r e1) @ (rl e2)
-    | E.InfixOp (e1, _, e2)  -> (r e1) @ (r e2)
-    | E.Let (bindings, body) -> (bindings |> List.map fst) @ ( body :: (bindings |> List.map snd) |> rl )
-    | E.SymRef sym -> [sym]
-    | E.Const _ -> []
-    | E.Conditional (test, thn, els) -> rl [test; thn; els]
+    | E.Call (e1, _, e2) -> Seq.append (r e1) (rl e2)
+    | E.TraitCall (_, _, args) -> rl args
+    | E.InfixOp (e1, _, e2)  -> Seq.append (r e1) (r e2)
+    | E.Let (bindings, body) -> Seq.concat [ bindings |> Seq.map fst; r body; bindings |> Seq.collect (snd >> r) ]
+    | E.SymRef sym -> Seq.singleton sym
+    | E.Const _ -> Seq.empty
+    | E.Conditional (test, thn, els) -> Seq.concat [r test; r thn; r els]
+
+    r expr |> Seq.toList

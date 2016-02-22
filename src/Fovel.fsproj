@@ -191,6 +191,7 @@
     <Compile Include="CodeGen.fs" />
     <Compile Include="CoreLib.FSharp.fs" />
     <Compile Include="CoreLib.fs" />
+    <Compile Include="Transformation.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Integration.fs" />
     <None Include="paket.references" />

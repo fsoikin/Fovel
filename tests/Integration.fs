@@ -32,10 +32,10 @@ let [<Fact>] ``Basic`` () =
       let c = g f 8 """
     """
       var x = 5
-      var f = fn(x__1) (x__1) + (1)
-      var g = fn(a, b) (a)(b)
-      var y = (f)(5)
-      var c = (g)(f, 8)"""
+      var f = fn(x__1) {x__1} + {1}
+      var g = fn(a, b) {a}(b)
+      var y = {f}(5)
+      var c = {g}(f, 8)"""
 
 let [<Fact>] ``Operators as functions`` () = 
   compileCompare
@@ -46,10 +46,10 @@ let [<Fact>] ``Operators as functions`` () =
       let y = (+) 5
       let z = y 6 """
     """
-      var f = fn(x) fn(y) (x) + (y)
-      var x__1 = ((f)(1))(2)
-      var y__1 = { var x__2 = (5) fn(y__2) (x__2) + (y__2) }
-      var z = (y__1)(6)"""
+      var f = fn(x) fn(y) {x} + {y}
+      var x__1 = {{f}(1)}(2)
+      var y__1 = { var x__2 = {5} fn(y__2) {x__2} + {y__2} }
+      var z = {y__1}(6)"""
 
 let [<Fact>] ``Conditional`` () = 
   compileCompare
@@ -61,7 +61,7 @@ let [<Fact>] ``Conditional`` () =
     """
       var x = 5
       var y = 7
-      var z = if ((x) > (y)) ((x) + (y)) else ((y) - (x)) """
+      var z = if {{x} > {y}} {{x} + {y}} else {{y} - {x}} """
 
 let [<Fact>] ``Complex functions`` () = 
   compileCompare
@@ -74,9 +74,9 @@ let [<Fact>] ``Complex functions`` () =
       let g = f 5
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = ((x) + (6)) { var y__1 = ((y) - (6)) (z) * (y__1) } }
-      var g = { var x__1 = (5) fn(y__2) (f)(x__1, y__2) }
-      var h = (g)(7) """
+      var f = fn(x, y) { var z = {{x} + {6}} { var y__1 = {{y} - {6}} {z} * {y__1} } }
+      var g = { var x__1 = {5} fn(y__2) {f}(x__1, y__2) }
+      var h = {g}(7) """
 
 let [<Fact>] ``Recursive functions`` () = 
   compileCompare
@@ -89,9 +89,9 @@ let [<Fact>] ``Recursive functions`` () =
       and g x = f x (x+1)
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = ((x) + (6)) { var y__1 = ((y) - (6)) (z) * ((g)(y__1)) } }
-      var g = fn(x__1) (f)(x__1, (x__1) + (1))
-      var h = ((g)(7)) + ((f)(5, 8)) """
+      var f = fn(x, y) { var z = {{x} + {6}} { var y__1 = {{y} - {6}} {z} * {{g}(y__1)} } }
+      var g = fn(x__1) {f}(x__1, {x__1} + {1})
+      var h = {{g}(7)} + {{f}(5, 8)} """
 
 let [<Fact>] ``Static methods and overloads`` () = 
   compileCompare
@@ -109,9 +109,9 @@ let [<Fact>] ``Static methods and overloads`` () =
       var f = fn(unitVar0) 5
       var f__1 = fn(s) 6
       var f__2 = fn(x) 'whatever'
-      var x__1 = (f)(null)
-      var y = (f__1)('abc')
-      var z = (f__2)(5) """
+      var x__1 = {f}(null)
+      var y = {f__1}('abc')
+      var z = {f__2}(5) """
 
 let [<Fact>] ``Instance methods are not supported`` () =
   let config = { 
@@ -151,7 +151,7 @@ let [<Fact>] ``Single-case unions are erased`` () =
       var z = patternInput_7
       var patternInput_8_1 = y
       var w = patternInput_8_1
-      var p = (z) + (w) """
+      var p = {z} + {w} """
 
   
 let [<Fact>] ``Unions`` () = 
@@ -186,3 +186,29 @@ let [<Fact>] ``Unions`` () =
       var x = __t.U.U.make( 0 )
       var y = __t.U.W.make( '1' )
       var z = __t.U.Z.make( 5, true ) """
+
+
+let [<Fact>] ``Inlining`` () = 
+  compileCompare
+    """
+      module X
+      let inline f x = x+5
+      let inline g x y = x+y
+      let inline ap f x = f x
+      let y = f 6 
+      let z = ap f 10 
+      let w = ap (g 5) 10 """
+    """
+      var y = { var x = {6}
+                {x} + {5} }
+
+      var z = { var f = {f__1}
+                var x__1 = {10}
+                {f}(x__1) }
+
+      var w = { var f = {{ var x__2 = {5}
+                           fn(y__1) { var x__3 = {x__2}
+                                      var y__2 = {y__1}
+                                      {x__3} + {y__2} } }}
+                var x__1 = {10}
+                {f}(x__1) }"""

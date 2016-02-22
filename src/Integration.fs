@@ -49,15 +49,22 @@ let replaceFunctions replaceCall program =
   let replace fn = if FSharp.isFunction fn then replaceCall allFunctions fn else fn
   program |> List.map (Binding.mapExpr <| Expr.mapSymbol replace)
 
-let fsharpSourcesToShovel config sources =
-  let prelude = 
+let prependPrelude config sources = 
+  let prelude =
     config.FSharpPrelude 
     |> Option.map (fun code -> ["_prelude.fs", code]) 
     |> Option.orElse []
 
-  FSCompiler.parseProgram (prelude @ sources)
+  prelude @ sources
+
+
+let fsharpSourcesToShovel config sources =
+  sources
+  |> prependPrelude config
+  |> FSCompiler.parseProgram
   >>= fsharpProgramToFovel config.ParseIntrinsic
   |*> replaceFunctions config.ReplaceFunctions
-  >>= Validation.allValidations
+  |*> Transformation.applyAll
+  >>= Validation.applyAll
   >>= eraseFSharpEntities
   |*> generateShovelCode config.GenerateIntrinsicCode config.ShovelPrelude

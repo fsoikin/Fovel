@@ -8,6 +8,6 @@ let noReferencesToExternalSymbols program =
     >> Result.seqMap (Result.fail << Error.CannotReferenceExternalSymbol)
   program |> Result.seqMap ensureBinding
 
-let allValidations program =
+let applyAll program =
   noReferencesToExternalSymbols program
   |*> (fun _ -> program)

@@ -66,15 +66,16 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
 
   // Built-in intrinsics
   | BasicPatterns.Call (None, Intrinsics.InfixOperator op, _, _, [arg1; arg2]) -> E.InfixOp <!! (r arg1, retn op, r arg2)
-  | BasicPatterns.Call (None, Intrinsics.Pipe, _, _, [arg; fn]) -> E.Call <! (r fn, Result.sequence [r arg])
-  | BasicPatterns.Call (None, Intrinsics.BackPipe, _, _, [fn; arg]) -> E.Call <! (r fn, Result.sequence [r arg])
+  | BasicPatterns.Call (None, Intrinsics.Pipe, _, _, [arg; fn]) -> E.Call <!! (r fn, retn [], Result.sequence [r arg])
+  | BasicPatterns.Call (None, Intrinsics.BackPipe, _, _, [fn; arg]) -> E.Call <!! (r fn, retn [], Result.sequence [r arg])
   | BasicPatterns.Call (None, Intrinsics.TupleGet idx, _, _, [tupl]) -> E.TupleGet <!! (retn tupl.Type, retn idx, r tupl)
   | BasicPatterns.Call (None, Intrinsics.Fn "Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicFunctions.GetArray", _, _, [arr;idx]) -> E.ArrayElement <! (r arr, r idx)
 
   // Function calls
   | BasicPatterns.Call (None, fn, _, _, []) -> retn (E.SymRef fn)
-  | BasicPatterns.Call (None, fn, _, _, args) -> E.Call <! (retn (E.SymRef fn), rl args)
-  | BasicPatterns.Application (fn, _, args) -> E.Call <! (r fn, rl args)
+  | BasicPatterns.Call (None, fn, _, typeArgs, args) -> E.Call <!! (retn (E.SymRef fn), retn typeArgs, rl args)
+  | BasicPatterns.Application (fn, _, args) -> E.Call <!! (r fn, retn [], rl args)
+  | BasicPatterns.TraitCall (typs, membr, _, _, args) -> E.TraitCall <!! (retn typs, retn membr, rl args)
 
   // Tuples
   | BasicPatterns.NewTuple (typ, exprs) -> E.NewTuple <! (retn typ, rl exprs)
@@ -115,4 +116,5 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   // Arrays
   | BasicPatterns.NewArray (typ, elements) -> E.NewArray <! (retn typ, rl elements)
 
+  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.InstanceMethodsNotSupported fn)
   | e -> Result.fail (Error.UnsupportedExpression e)
