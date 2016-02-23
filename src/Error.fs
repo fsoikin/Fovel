@@ -13,6 +13,8 @@ type Error =
   | UnsupportedExpression of expr: FSharpExpr
   | UnsupportedType of typ: FSharpType
 
+  | UnresolvedTraitCall of types: FSharpType list * memberName: Identifier
+
 
 [<CompilationRepresentation( CompilationRepresentationFlags.ModuleSuffix )>]
 module Error =
@@ -35,5 +37,6 @@ module Error =
     | Error.CannotReferenceExternalSymbol s -> sprintf "Symbol '%s' cannot be turned into Shovel code, because it comes from an external assembly. Either include source code for the symbol in the compilation batch or handle it as an intrinsic." (FSharp.fnFullName s)
     | Error.UnsupportedExpression e -> sprintf "Unsupported expression: %s" (formatExpr e)
     | Error.UnsupportedType t -> sprintf "Unsupported type: %s" (formatType t)
+    | Error.UnresolvedTraitCall (types, memberName) -> sprintf "Cannot resolve static constraint: member '%s' not found on any of types: %s" memberName (types |> Seq.map FSharp.typeName |> String.concat ", ")
 
   let formatAll = List.map format

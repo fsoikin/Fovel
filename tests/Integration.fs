@@ -48,8 +48,9 @@ let [<Fact>] ``Operators as functions`` () =
     """
       var f = fn(x) fn(y) {x} + {y}
       var x__1 = {{f}(1)}(2)
-      var y__1 = { var x__2 = {5} fn(y__2) {x__2} + {y__2} }
-      var z = {y__1}(6)"""
+      var y__1 = { var x__2 = {5}
+                   fn(y__2) {x__2} + {y__2} }
+      var z = {y__1}(6) """
 
 let [<Fact>] ``Conditional`` () = 
   compileCompare
@@ -74,8 +75,11 @@ let [<Fact>] ``Complex functions`` () =
       let g = f 5
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = {{x} + {6}} { var y__1 = {{y} - {6}} {z} * {y__1} } }
-      var g = { var x__1 = {5} fn(y__2) {f}(x__1, y__2) }
+      var f = fn(x, y) { var z = {{x} + {6}}
+                       { var y__1 = {{y} - {6}}
+                         {z} * {y__1} } }
+      var g = { var x__1 = {5}
+                fn(y__2) {f}(x__1, y__2) }
       var h = {g}(7) """
 
 let [<Fact>] ``Recursive functions`` () = 
@@ -89,7 +93,9 @@ let [<Fact>] ``Recursive functions`` () =
       and g x = f x (x+1)
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = {{x} + {6}} { var y__1 = {{y} - {6}} {z} * {{g}(y__1)} } }
+      var f = fn(x, y) { var z = {{x} + {6}}
+                       { var y__1 = {{y} - {6}}
+                         {z} * {{g}(y__1)} } }
       var g = fn(x__1) {f}(x__1, {x__1} + {1})
       var h = {{g}(7)} + {{f}(5, 8)} """
 
@@ -202,7 +208,7 @@ let [<Fact>] ``Inlining`` () =
       var y = { var x = {6}
                 {x} + {5} }
 
-      var z = { var f = {f__1}
+      var z = { var f = {fn(x) {x} + {5}}
                 var x__1 = {10}
                 {f}(x__1) }
 
@@ -212,3 +218,52 @@ let [<Fact>] ``Inlining`` () =
                                       {x__3} + {y__2} } }}
                 var x__1 = {10}
                 {f}(x__1) }"""
+
+
+let [<Fact>] ``Statically resolved type constraints`` () = 
+  compileCompare
+    """
+      module X
+
+      type T() =
+        static member X = "abc"
+        static member Y i = i+5
+        static member Z x = x
+
+      type H() =
+        static member X = "xyz"
+        static member Y i = i-8
+
+      let inline getX< ^t when ^t: (static member X: string)> () = (^t: (static member X: string)())
+      let inline y< ^t when ^t: (static member Y: int -> int)> x = (^t: (static member Y: int -> int) x) 
+      let inline z< ^a, ^t when ^t: (static member Z: ^a -> ^a)> x = (^t: (static member Z: ^a -> ^a) x)
+      
+      let a = getX<T>()
+      let b = y<T> 5
+      let c = z<string, T> "123" 
+      
+      let p = getX<H>()
+      let q = y<H> 10 """
+
+    """
+      var get_X = fn(unitVar0) 'abc'
+      var Y = fn(i) {i} + {5}
+      var Z = fn(x) x
+
+      var get_X__1 = fn(unitVar0__1) 'xyz'
+      var Y__1 = fn(i__1) {i__1} - {8}
+
+      var a = { var unitVar0__1 = {null}
+                {get_X}() }
+
+      var b = { var x__1 = {5}
+                {Y}(x__1) }
+
+      var c = { var x__2 = {'123'}
+                {Z}(x__2) } 
+                
+      var p = { var unitVar0__2 = {null}
+                {get_X__1}() }
+
+      var q = { var x__1 = {10}
+                {Y__1}(x__1) }"""

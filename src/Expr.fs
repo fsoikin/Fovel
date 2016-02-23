@@ -16,7 +16,7 @@ type E<'Type, 'Symbol, 'Intrinsic> =
   | RecordFieldGet of recordType: 'Type * record: E<'Type, 'Symbol, 'Intrinsic> * field: Identifier
   | NewArray of elementType: 'Type * elements: E<'Type, 'Symbol, 'Intrinsic> list
   | ArrayElement of array: E<'Type, 'Symbol, 'Intrinsic> * idx: E<'Type, 'Symbol, 'Intrinsic>
-  | Function of parameter: 'Symbol * body: E<'Type, 'Symbol, 'Intrinsic>
+  | Function of parameters: 'Symbol list * body: E<'Type, 'Symbol, 'Intrinsic>
   | Call of func: E<'Type, 'Symbol, 'Intrinsic> * typeArgs: 'Type list * args: E<'Type, 'Symbol, 'Intrinsic> list
   | TraitCall of types: 'Type list * membr: Identifier * args: E<'Type, 'Symbol, 'Intrinsic> list
   | InfixOp of leftArg: E<'Type, 'Symbol, 'Intrinsic> * op: InfixOpKind * rightArg: E<'Type, 'Symbol, 'Intrinsic>
@@ -48,7 +48,7 @@ module Expr =
     | E.NewArray (typ, els) -> E.NewArray (fTyp typ, fl els)
     | E.Intrinsic (i, args) -> E.Intrinsic(fIntrinsic i, fl args)
     | E.Const (o, t) -> E.Const( o, fTyp t )
-    | E.Function (p, body) -> E.Function( fSym p, fExpr body )
+    | E.Function (ps, body) -> E.Function( ps |> List.map fSym, fExpr body )
     | E.SymRef s -> E.SymRef (fSym s)
     | E.Let (bindings, body) -> E.Let( bindings |> mapLetBindings fSym fExpr, fExpr body )
 
@@ -79,7 +79,7 @@ module Expr =
     | E.Intrinsic (_, es) | E.Sequence es -> rl es
     | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) | E.NewArray (_, items) ->  rl items
     | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.RecordFieldGet (_, e, _) -> r e
-    | E.Function (s, e) -> Seq.append [s] (r e)
+    | E.Function (ss, e) -> Seq.append ss (r e)
     | E.ArrayElement (arr,idx) -> rl [arr; idx]
     | E.Call (e1, _, e2) -> Seq.append (r e1) (rl e2)
     | E.TraitCall (_, _, args) -> rl args

@@ -11,10 +11,12 @@ module FSharp =
   open Microsoft.FSharp.Compiler.SourceCodeServices
   type fn = FSharpMemberOrFunctionOrValue
   let fnFullName (fn: fn) = fn.FullName
+  let fnCompiledName (fn: fn) = fn.CompiledName
   let isFunction (fn: fn) = fn.CurriedParameterGroups.Count > 0
   let isInline (fn: fn) = fn.InlineAnnotation = FSharpInlineAnnotation.AlwaysInline || fn.InlineAnnotation = FSharpInlineAnnotation.PseudoValue
   let typeParameters (fn: fn) = fn.GenericParameters :> seq<_>
   let isGeneric (fn: fn) = fn.GenericParameters.Count > 0
+  let typeName (t: FSharpType) = t.ToString()
 
 [<AutoOpen>]
 module Common =

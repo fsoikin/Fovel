@@ -84,7 +84,7 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   // Primitives
   | BasicPatterns.Const (c, typ) -> retn <| E.Const( c, typ )
   | BasicPatterns.Value v -> retn (E.SymRef v)
-  | BasicPatterns.Lambda (sym, expr) -> E.Function <! (retn sym, r expr)
+  | BasicPatterns.Lambda (sym, expr) -> E.Function <! (retn [sym], r expr)
 
   // Let
   | BasicPatterns.Let ((sym,expr), inExpr) -> 

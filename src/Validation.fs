@@ -8,6 +8,12 @@ let noReferencesToExternalSymbols program =
     >> Result.seqMap (Result.fail << Error.CannotReferenceExternalSymbol)
   program |> Result.seqMap ensureBinding
 
+//let resolvedTraitCalls program =
+//  let rec traitCall = 
+//    Binding.referencedExternalSymbols 
+//    >> Result.seqMap (Result.fail << Error.CannotReferenceExternalSymbol)
+//  program |> Result.seqMap ensureBinding
+
 let applyAll program =
   noReferencesToExternalSymbols program
   |*> (fun _ -> program)

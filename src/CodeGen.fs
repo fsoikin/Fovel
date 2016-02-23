@@ -31,10 +31,7 @@ let unionCaseCode case =
   <| fieldsQuoted <| fields <| comma <| fields
 
 let typeCode = function
-  | Array | Bool | Tuple _ | Unit | String 
-  | Int | Float | Function | GenericParameter _ -> 
-    None
-  
+  | NotImportant -> None
   | SingleCaseUnion -> None // Erase single-case unions
 
   | Union(_, cases) -> 
@@ -104,7 +101,7 @@ let rec exprCode intrinsicCode expr =
   | E.NewArray (_, els) -> sprintf "array( %s )" (rl els)
   | E.ArrayElement (arr, idx) -> sprintf "{%s}.%s" (r arr) (r idx)
 
-  | E.Function(parameter, body) -> sprintf "fn(%s) %s" parameter (r body)
+  | E.Function(parameters, body) -> sprintf "fn(%s) %s" (String.concat ", " parameters) (r body)
   | E.InfixOp(leftArg, op, rightArg) -> sprintf "{%s} %s {%s}" (r leftArg) (infixOpCode op) (r rightArg)
   | E.SymRef sym -> sym
   | E.Const(c, _) -> constCode c

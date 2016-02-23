@@ -37,7 +37,7 @@ let fsharpProgramToFovel parseIntrinsic program =
   |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
 
 let eraseFSharpEntities program =
-  program |> Symbol.genSymbols |> Type.genTypes |*> CodeGen.assignTypeNames
+  program |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
 
 let generateShovelCode generateIntrinsicCode prelude = 
   let prependPrelude = match prelude with Some code -> (+) code | None -> id
@@ -66,5 +66,5 @@ let fsharpSourcesToShovel config sources =
   |*> replaceFunctions config.ReplaceFunctions
   |*> Transformation.applyAll
   >>= Validation.applyAll
-  >>= eraseFSharpEntities
+  |*> eraseFSharpEntities
   |*> generateShovelCode config.GenerateIntrinsicCode config.ShovelPrelude
