@@ -16,7 +16,8 @@ module FSharp =
   let isInline (fn: fn) = fn.InlineAnnotation = FSharpInlineAnnotation.AlwaysInline || fn.InlineAnnotation = FSharpInlineAnnotation.PseudoValue
   let typeParameters (fn: fn) = fn.GenericParameters :> seq<_>
   let isGeneric (fn: fn) = fn.GenericParameters.Count > 0
-  let typeName (t: FSharpType) = t.ToString()
+  let typeName (t: FSharpType) = t.Format FSharpDisplayContext.Empty
+  let isSameFn (a: fn) = a.IsEffectivelySameAs
 
 [<AutoOpen>]
 module Common =

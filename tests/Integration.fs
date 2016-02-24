@@ -253,8 +253,8 @@ let [<Fact>] ``Statically resolved type constraints`` () =
       var get_X__1 = fn(unitVar0__1) 'xyz'
       var Y__1 = fn(i__1) {i__1} - {8}
 
-      var a = { var unitVar0__1 = {null}
-                {get_X}() }
+      var a = { var unitVar0__2 = {null}
+                {get_X}(null) }
 
       var b = { var x__1 = {5}
                 {Y}(x__1) }
@@ -263,7 +263,7 @@ let [<Fact>] ``Statically resolved type constraints`` () =
                 {Z}(x__2) } 
                 
       var p = { var unitVar0__2 = {null}
-                {get_X__1}() }
+                {get_X__1}(null) }
 
       var q = { var x__1 = {10}
                 {Y__1}(x__1) }"""

@@ -9,6 +9,8 @@ let private fnDefinition = function
 
 let private fstt (x,_,_) = x
 
+let private findBinding all fn = all |> List.tryFind (fstt >> FSharp.isSameFn fn)
+
 let rec private replaceGenericParams parms args expr =
   let map = Seq.zip parms args |> Seq.toList
   let sameType (a: FSharpType) (p: FSharpGenericParameter) = a.IsGenericParameter && a.GenericParameter = p
@@ -24,16 +26,15 @@ let private inlineExpression replaceNestedCalls args typeArgs (fn,parms,body) =
 
 let inlineFunctions program =
   let allInlineBindings = program |> List.choose fnDefinition |> List.filter (fstt >> FSharp.isInline)
-  let findBinding fn = allInlineBindings |> List.tryFind (fstt >> (=) fn)
 
   let rec replaceInlineFnRefs = function
     | E.Call (E.SymRef fn, typeArgs, args) as e when FSharp.isInline fn -> 
-        findBinding fn
+        findBinding allInlineBindings fn
         |> Option.map (inlineExpression replaceInlineFnRefs args typeArgs)
         |> Option.orElse e
 
     | E.SymRef fn as e when not (FSharp.isGeneric fn) && FSharp.isInline fn ->
-        findBinding fn
+        findBinding allInlineBindings fn
         |> Option.map (fun (_,parms,body) -> E.Function (parms, body))
         |> Option.orElse e
 
@@ -45,12 +46,22 @@ let inlineFunctions program =
 let resolveStaticConstraints program =
   let typeMembers (t: FSharpType) = if t.HasTypeDefinition then t.TypeDefinition.MembersFunctionsAndValues :> seq<FSharp.fn> else Seq.empty
   let findMethod types mthdName = types |> Seq.collect typeMembers |> Seq.tryFind (fun m -> m.CompiledName = mthdName)
+  let allBindings = program |> List.choose fnDefinition
+
+  /// This handles a special case: when the trait has a single unit argument, the F# compiler will return empty list for arguments.
+  /// In this case, we cannot generate a Shovel call with empty list of arguments, because the function is defined with one argument.
+  /// Therefore, if we find this special case, we will make arguments a list containing a single unit value.
+  let coerceArgs parms args = 
+    match args, parms with
+    | [], [p] -> [E.Const (null, (p:FSharpMemberOrFunctionOrValue).FullType)]
+    | _ -> args
   
   let rec resolveTraitCalls = function
     
     | E.TraitCall (typeArgs, mthdName, args) as e -> 
       findMethod typeArgs mthdName
-      |> Option.map (fun fn -> E.Call (E.SymRef fn, [], args))
+      |> Option.bind (findBinding allBindings)
+      |> Option.map (fun (fn,parms,_) -> E.Call (E.SymRef fn, [], coerceArgs parms args))
       |> Option.orElse e
 
     | e -> Expr.cata resolveTraitCalls id id id e
