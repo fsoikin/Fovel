@@ -281,6 +281,31 @@ let [<Fact>] ``Statically resolved type constraints`` () =
       var q = { var x__1 = {10}
                 {Y__1}(x__1) }"""
 
+let [<Fact>] ``Statically resolved type constraints - parameterless`` () = 
+  compileCompare
+    """
+      module X
+
+      type T() =
+        static member X = "abc"
+
+      type U() =
+        static member X = "xyz"
+
+      let inline getX< ^t when ^t: (static member X: string)> = (^t: (static member X: string)())
+      
+      let a = getX<T> 
+      let b = getX<U> """
+    """
+      var get_X = fn(unitVar0) 'abc'
+      var get_X__1 = fn(unitVar0__1) 'xyz'
+    
+      var a = {
+        {get_X}(null) }
+
+      var b = {
+        {get_X__1}(null) } """
+
 let [<Fact>] ``Type alias`` () = 
   compileCompare
     """

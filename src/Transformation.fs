@@ -4,7 +4,7 @@ open Fovel.Gen
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
 let private fnDefinition = function
-  | { Binding.Fn = Some (fn,parms); Expr = expr } when parms <> [] -> Some (fn, parms |> List.map fst, expr)
+  | { Binding.Fn = Some (fn,parms); Expr = expr } -> Some (fn, parms |> List.map fst, expr)
   | _ -> None
 
 let private fstt (x,_,_) = x
@@ -26,14 +26,17 @@ let private inlineExpression replaceNestedCalls args typeArgs (fn,parms,body) =
 
 let inlineFunctions program =
   let allInlineBindings = program |> List.choose fnDefinition |> List.filter (fstt >> FSharp.isInline)
+  printfn "A"
 
   let rec replaceInlineFnRefs = function
     | E.Call (E.SymRef fn, typeArgs, args) as e when FSharp.isInline fn -> 
+        printfn "Inline %A - %A" fn (findBinding allInlineBindings fn)
         findBinding allInlineBindings fn
+        |> Option.map( fun x -> printfn "%A" x; x)
         |> Option.map (inlineExpression replaceInlineFnRefs args typeArgs)
         |> Option.orElse e
 
-    | E.SymRef fn as e when not (FSharp.isGeneric fn) && FSharp.isInline fn ->
+    | E.SymRef fn as e when FSharp.isInline fn ->
         findBinding allInlineBindings fn
         |> Option.map (fun (_,parms,body) -> E.Function (parms, body))
         |> Option.orElse e

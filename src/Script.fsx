@@ -31,10 +31,15 @@ let ints = """
 
 let src = """
       module X
-      type U = U of int with static member X = "abc"
 
-      let inline f< ^t when ^t: (static member X: string)> () = (^t: (static member X: string)())
-      let y = f<U>()
+      type ObjectHandle = private ObjectHandle of Value: string
+
+      module AboutObject =
+        let inline typeOf< ^obj when ^obj: (static member AboutType: string)> = (^obj: (static member AboutType: string) ())
+
+      type Candidate = Candidate of handle: ObjectHandle with static member Handle (Candidate h) = h; static member AboutType = "Candidate"
+
+      let t = AboutObject.typeOf<Candidate>
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
@@ -44,15 +49,26 @@ let e =
   fsharpSourcesToShovel Config.Default srcs 
   |> Result.mapError Error.formatAll
 
-//let ee =
-//  srcs |> prependPrelude Config.Default
-//  |> FSCompiler.parseProgram
-//  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
-//
-//let (OK t) = ee |*> List.collect Binding.allTypes |*> List.item 0
-//
-//let (OK (_::_::_::_::_::_::_::_::{Expr=E.UnionCase (t,_,_)}::_)) = ee
-//
-//t.TypeDefinition.IsFSharpUnion
-//  
-//let eee = ee |*> Transformation.inlineFunctions
+let fnDefinition = function
+  | { Binding.Fn = Some (fn,parms); Expr = expr } when parms <> [] -> Some (fn, parms |> List.map fst, expr)
+  | _ -> None
+
+let fstt (x,_,_) = x
+
+let ee =
+  srcs
+  |> FSCompiler.parseProgram
+  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
+  |*> (List.choose fnDefinition)// >> List.filter (fstt >> FSharp.isInline))
+
+  |*> Transformation.inlineFunctions
+
+let (OK t) = ee |*> List.item 3 |*> (fun {Expr=Call (SymRef fn,_,_)} -> fn)
+
+FSharp.isInline t
+
+let (OK (_::_::_::_::_::_::_::_::{Expr=E.UnionCase (t,_,_)}::_)) = ee
+
+t.TypeDefinition.IsFSharpUnion
+  
+let eee = ee |*> Transformation.inlineFunctions
