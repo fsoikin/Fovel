@@ -168,7 +168,9 @@ let [<Fact>] ``Unions`` () =
 
       let x = U 0
       let y = W "1"
-      let z = Z (5, true) """
+      let z = Z (5, true)
+      
+      let a = match x with | U i -> i | W j -> 5 | Z (k,b) -> k """
     """
       var __unioncase = defstruct( array( 'make', 'test' ) )
       var __t = make( defstruct( array( 'U' ) ), 
@@ -191,7 +193,18 @@ let [<Fact>] ``Unions`` () =
 
       var x = __t.U.U.make( 0 )
       var y = __t.U.W.make( '1' )
-      var z = __t.U.Z.make( 5, true ) """
+      var z = __t.U.Z.make( 5, true ) 
+      
+      var a = if {__t.U.W.test( x )} {{
+        { var j = {{x}.ss}
+          5 } }} else {if {__t.U.Z.test( x )} {{
+        
+        { var k = {{x}.a}
+        { var b = {{x}.b}
+          k } } }} else {{
+
+        { var i = {{x}.Item}
+          i } }}}"""
 
 
 let [<Fact>] ``Inlining`` () = 
@@ -267,3 +280,59 @@ let [<Fact>] ``Statically resolved type constraints`` () =
 
       var q = { var x__1 = {10}
                 {Y__1}(x__1) }"""
+
+let [<Fact>] ``Type alias`` () = 
+  compileCompare
+    """
+      module X
+
+      type A<'a> = X of int | Y of 'a
+      type 'a B = A<'a>
+      
+      let f (b: B<_>) = match b with X i -> i | Y _ -> 0 """
+
+    """ var __unioncase = defstruct( array( 'make', 'test' ) )
+        var __t = make( defstruct( array( 'A_1' ) ),
+          make( defstruct( array( 'X','Y' ) ),
+            {
+              var def = defstruct( array( 'Item' ) )
+              makestruct( __unioncase,
+                fn (Item) make( def, Item ),
+                fn (x) isStructInstance( x, def ) ) },
+            {
+              var def = defstruct( array( 'Item' ) )
+              makestruct( __unioncase,
+                fn (Item) make( def, Item ),
+                fn (x) isStructInstance( x, def ) ) } ) )
+
+        var f = fn(b) if {__t.A_1.Y.test( b )} {{
+            0 }} else {{
+          { var i = {{b}.Item}
+            i } }}
+      """
+
+let [<Fact>] ``List`` () = 
+  compileCompare
+    """
+      module X
+
+      let f = function | x::xs -> x | _ -> 0 """
+
+    """ var __unioncase = defstruct( array( 'make', 'test' ) )
+        var __t = make( defstruct( array( 'List_1' ) ),
+        make( defstruct( array( 'op_Nil','op_ColonColon' ) ),
+          {
+            var def = defstruct( array(  ) )
+            makestruct( __unioncase,
+              fn () make( def ),
+              fn (x) isStructInstance( x, def ) ) },
+          {
+            var def = defstruct( array( 'Head', 'Tail' ) )
+            makestruct( __unioncase,
+              fn (Head, Tail) make( def, Head, Tail ),
+              fn (x) isStructInstance( x, def ) ) } ) )
+      
+        var f = fn(_arg1) if {__t.List_1.op_ColonColon.test( _arg1 )} {{ var xs = {{_arg1}.Tail}
+                                                                       { var x = {{_arg1}.Head}
+                                                                         x } }} else {0}
+      """

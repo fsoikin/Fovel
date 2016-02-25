@@ -11,15 +11,14 @@ let private unionCase (c: FSharpUnionCase) =
   let items = c.UnionCaseFields |> Seq.map (fun f -> f.Name) |> Seq.toList
   { CaseId = c.Name; Fields = items }
 
-let fsharpTypeToFovelType (t: FSharpType) = 
-  if not t.HasTypeDefinition then
-    NotImportant
-  else
-    match t.TypeDefinition with
-    | e when e.IsFSharpUnion -> Type.Union (e.LogicalName, e.UnionCases |> Seq.map unionCase |> Seq.toList)
-    | e when e.IsFSharpRecord -> Type.Record (e.LogicalName, e.FSharpFields |> Seq.map (fun f -> f.Name) |>  Seq.toList)
-    | _ -> NotImportant
+let typeDefinition (t: FSharpType) = if t.HasTypeDefinition then Some t.TypeDefinition else None
 
+let rec fsharpTypeToFovelType (t: FSharpType) = 
+  match t.IsAbbreviation, typeDefinition t with
+  | true,_ -> fsharpTypeToFovelType t.AbbreviatedType
+  | _, Some e when e.IsFSharpUnion -> Type.Union (e.LogicalName, e.UnionCases |> Seq.map unionCase |> Seq.toList)
+  | _, Some e when e.IsFSharpRecord -> Type.Record (e.LogicalName, e.FSharpFields |> Seq.map (fun f -> f.Name) |>  Seq.toList)
+  | _ -> NotImportant
 
 let genTypes program = 
   let shovelTypes =

@@ -44,14 +44,15 @@ let e =
   fsharpSourcesToShovel Config.Default srcs 
   |> Result.mapError Error.formatAll
 
-let ee =
-  srcs 
-  |> FSCompiler.parseProgram
-  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
-
-let (OK ({Fn=Some(fn,_)}::_)) = ee
-let (OK ([_;_;{Expr=E.Call(_,[t],_)}])) = ee
-
-t.TypeDefinition.MembersFunctionsAndValues.[0].IsEffectivelySameAs fn
-  
-let eee = ee |*> Transformation.inlineFunctions
+//let ee =
+//  srcs |> prependPrelude Config.Default
+//  |> FSCompiler.parseProgram
+//  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
+//
+//let (OK t) = ee |*> List.collect Binding.allTypes |*> List.item 0
+//
+//let (OK (_::_::_::_::_::_::_::_::{Expr=E.UnionCase (t,_,_)}::_)) = ee
+//
+//t.TypeDefinition.IsFSharpUnion
+//  
+//let eee = ee |*> Transformation.inlineFunctions
