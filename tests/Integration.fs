@@ -177,17 +177,17 @@ let [<Fact>] ``Unions`` () =
         make( defstruct( array( 'U','W','Z' ) ), 
           {
             var def = defstruct( array( 'Item' ) )
-            makestruct( __unioncase, 
+            make( __unioncase, 
               fn (Item) make( def, Item ), 
               fn (x) isStructInstance( x, def ) ) },
           {
             var def = defstruct( array( 'ss' ) )
-            makestruct( __unioncase, 
+            make( __unioncase, 
               fn (ss) make( def, ss ), 
               fn (x) isStructInstance( x, def ) ) },
           {
             var def = defstruct( array( 'a', 'b' ) )
-            makestruct( __unioncase, 
+            make( __unioncase, 
               fn (a, b) make( def, a, b ), 
               fn (x) isStructInstance( x, def ) ) } ) )
 
@@ -296,12 +296,12 @@ let [<Fact>] ``Type alias`` () =
           make( defstruct( array( 'X','Y' ) ),
             {
               var def = defstruct( array( 'Item' ) )
-              makestruct( __unioncase,
+              make( __unioncase,
                 fn (Item) make( def, Item ),
                 fn (x) isStructInstance( x, def ) ) },
             {
               var def = defstruct( array( 'Item' ) )
-              makestruct( __unioncase,
+              make( __unioncase,
                 fn (Item) make( def, Item ),
                 fn (x) isStructInstance( x, def ) ) } ) )
 
@@ -323,12 +323,12 @@ let [<Fact>] ``List`` () =
         make( defstruct( array( 'op_Nil','op_ColonColon' ) ),
           {
             var def = defstruct( array(  ) )
-            makestruct( __unioncase,
+            make( __unioncase,
               fn () make( def ),
               fn (x) isStructInstance( x, def ) ) },
           {
             var def = defstruct( array( 'Head', 'Tail' ) )
-            makestruct( __unioncase,
+            make( __unioncase,
               fn (Head, Tail) make( def, Head, Tail ),
               fn (x) isStructInstance( x, def ) ) } ) )
       

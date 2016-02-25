@@ -25,7 +25,7 @@ let unionCaseCode case =
   let comma = if fields = "" then "" else ", "
   sprintf """{
     var def = defstruct( array( %s ) )
-    makestruct( __unioncase, 
+    make( __unioncase, 
       fn (%s) make( def%s%s ), 
       fn (x) isStructInstance( x, def ) ) }"""
   <| fieldsQuoted <| fields <| comma <| fields
