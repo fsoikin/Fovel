@@ -114,8 +114,12 @@ let rec exprCode intrinsicCode expr =
   | E.Sequence es -> es |> Seq.map r |> String.concat "\n"
 
   | E.Conditional(test, then', else') -> sprintf "if {%s} {%s} else {%s}" (r test) (r then') (r else')
-  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rl args)
   | E.TraitCall _ -> sprintf "panic( 'Unresolved static generic constraint' )"
+
+  // A call without arguments in F# means "generic value", as in "let v<'a> = f<'a>()"
+  | E.Call(func, _, []) -> sprintf "{%s}" (r func)
+  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rl args)
+
 
 let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
   let expr = exprCode expr

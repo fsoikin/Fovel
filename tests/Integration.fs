@@ -47,10 +47,10 @@ let [<Fact>] ``Operators as functions`` () =
       let z = y 6 """
     """
       var f = fn(x) fn(y) {x} + {y}
-      var x__1 = {{f}(1)}(2)
+      var x__1 = {{{f}}(1)}(2)
       var y__1 = { var x__2 = {5}
                    fn(y__2) {x__2} + {y__2} }
-      var z = {y__1}(6) """
+      var z = {{y__1}}(6) """
 
 let [<Fact>] ``Conditional`` () = 
   compileCompare
@@ -80,7 +80,7 @@ let [<Fact>] ``Complex functions`` () =
                          {z} * {y__1} } }
       var g = { var x__1 = {5}
                 fn(y__2) {f}(x__1, y__2) }
-      var h = {g}(7) """
+      var h = {{g}}(7) """
 
 let [<Fact>] ``Recursive functions`` () = 
   compileCompare
@@ -305,6 +305,40 @@ let [<Fact>] ``Statically resolved type constraints - parameterless`` () =
 
       var b = {
         {get_X__1}(null) } """
+
+
+let [<Fact>] ``Generic values`` () = 
+  compileCompare
+    """
+      module X
+
+      type T<'a> = T of string | U of int
+
+      let t<'a> () : T<'a> = T "abc"
+      let u<'a> = t<'a>()
+      
+      let a = u<string>
+      let b = u<int> """
+    """
+      var __unioncase = defstruct( array( 'make', 'test' ) )
+      var __t = make( defstruct( array( 'T_1' ) ),
+        make( defstruct( array( 'T','U' ) ),
+        {
+          var def = defstruct( array( 'Item' ) )
+          make( __unioncase,
+            fn (Item) make( def, Item ),
+            fn (x) isStructInstance( x, def ) ) },
+        {
+          var def = defstruct( array( 'Item' ) )
+          make( __unioncase,
+            fn (Item) make( def, Item ),
+            fn (x) isStructInstance( x, def ) ) } ) )
+
+      var t = fn(unitVar0) __t.T_1.T.make( 'abc' )
+      var u = {t}(null)
+      var a = {u}
+      var b = {u} """
+
 
 let [<Fact>] ``Type alias`` () = 
   compileCompare
