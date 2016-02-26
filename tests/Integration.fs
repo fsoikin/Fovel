@@ -395,3 +395,18 @@ let [<Fact>] ``List`` () =
                                                                        { var x = {{_arg1}.Head}
                                                                          x } }} else {0}
       """
+
+let [<Fact>] ``Multiline strings`` () = 
+  compileCompare
+    ("""
+      module X
+
+      let s = """ + "\"\"\"" + """
+        some text
+        multiline
+        """ + "\"\"\"" + """
+    """)
+      """ var s = '
+            some text
+            multiline
+            ' """

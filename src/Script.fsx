@@ -32,11 +32,10 @@ let ints = """
 let src = """
       module X
 
-      type T<'a> = T of int
-      let inline f<'a> () : T<'a> = T 0
-      let inline t<'a> = f<'a> ()
-      let x = t<string>
-      let y = t<bool>
+      let s = """ + "\"\"\"" + """
+        some text
+        multiline
+        """ + "\"\"\"" + """
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
