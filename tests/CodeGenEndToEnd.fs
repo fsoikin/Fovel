@@ -1,4 +1,4 @@
-﻿module Fovel.Tests.Integration
+﻿module Fovel.Tests.CodeGenEndToEnd
 open Xunit
 open Fovel
 open Fovel.Gen
@@ -153,10 +153,10 @@ let [<Fact>] ``Single-case unions are erased`` () =
     """
       var x = 0
       var y = 1
-      var patternInput_7 = x
-      var z = patternInput_7
-      var patternInput_8_1 = y
-      var w = patternInput_8_1
+      var patternInput_7_1 = x
+      var z = patternInput_7_1
+      var patternInput_8_2 = y
+      var w = patternInput_8_2
       var p = {z} + {w} """
 
   
@@ -172,40 +172,55 @@ let [<Fact>] ``Unions`` () =
       
       let a = match x with | U i -> i | W j -> 5 | Z (k,b) -> k """
     """
-      var __unioncase = defstruct( array( 'make', 'test' ) )
-      var __t = make( defstruct( array( 'U' ) ), 
-        make( defstruct( array( 'U','W','Z' ) ), 
-          {
-            var def = defstruct( array( 'Item' ) )
-            make( __unioncase, 
-              fn (Item) make( def, Item ), 
-              fn (x) isStructInstance( x, def ) ) },
-          {
-            var def = defstruct( array( 'ss' ) )
-            make( __unioncase, 
-              fn (ss) make( def, ss ), 
-              fn (x) isStructInstance( x, def ) ) },
-          {
-            var def = defstruct( array( 'a', 'b' ) )
-            make( __unioncase, 
-              fn (a, b) make( def, a, b ), 
-              fn (x) isStructInstance( x, def ) ) } ) )
+      var __t_U = make( defstruct( array( 'U','W','Z' ) ),
+        defstruct( array( 'Item' ) ),
+        defstruct( array( 'ss' ) ),
+        defstruct( array( 'a', 'b' ) )
+      )
 
-      var x = __t.U.U.make( 0 )
-      var y = __t.U.W.make( '1' )
-      var z = __t.U.Z.make( 5, true ) 
-      
-      var a = if {__t.U.W.test( x )} {{
+      var x = make( __t_U.U, 0 )
+      var y = make( __t_U.W, '1' )
+      var z = make( __t_U.Z, 5, true )
+      var a = if {isStructInstance( x, __t_U.W )} {{
         { var j = {{x}.ss}
-          5 } }} else {if {__t.U.Z.test( x )} {{
-        
-        { var k = {{x}.a}
-        { var b = {{x}.b}
-          k } } }} else {{
+          5 } }} else {if {isStructInstance( x, __t_U.Z )} {{
+            { var k = {{x}.a}
+            { var b = {{x}.b}
+              k } } }} else {{
+                { var i = {{x}.Item}
+                  i } }}} """
 
-        { var i = {{x}.Item}
-          i } }}}"""
+let [<Fact>] ``Records`` () = 
+  compileCompare
+    """
+      module X
+      type U = X of int | Y
+      type R = { A: string; B: int; C: U }
 
+      let r1 = { A = "abc"; B = 5; C = Y }
+      let r2 = { r1 with C = X 5 }
+      
+      let ({ A = a; B = i }) = r2
+      let m = match r1 with | { C = Y } -> 1 | { C = X x } -> x """
+    """
+      var __t_R = defstruct( array( 'A', 'B', 'C' ) )
+      var __t_U = make( defstruct( array( 'X','Y' ) ),
+        defstruct( array( 'Item' ) ),
+        defstruct( array(  ) )
+      )
+
+      var r1 = make( __t_R, 'abc', 5, make( __t_U.Y ) )
+      var r2 = { var C = {make( __t_U.X, 5 )}
+                 make( __t_R, {r1}.A, {r1}.B, C ) }
+
+      var patternInput_9 = r2
+      var i = {patternInput_9}.B
+      var a = {patternInput_9}.A
+
+      var m = if {isStructInstance( {r1}.C, __t_U.X )} {{
+        { var x = {{{r1}.C}.Item}
+          x } }} else {{
+                        1 }} """
 
 let [<Fact>] ``Inlining`` () = 
   compileCompare
@@ -320,21 +335,12 @@ let [<Fact>] ``Generic values`` () =
       let a = u<string>
       let b = u<int> """
     """
-      var __unioncase = defstruct( array( 'make', 'test' ) )
-      var __t = make( defstruct( array( 'T_1' ) ),
-        make( defstruct( array( 'T','U' ) ),
-        {
-          var def = defstruct( array( 'Item' ) )
-          make( __unioncase,
-            fn (Item) make( def, Item ),
-            fn (x) isStructInstance( x, def ) ) },
-        {
-          var def = defstruct( array( 'Item' ) )
-          make( __unioncase,
-            fn (Item) make( def, Item ),
-            fn (x) isStructInstance( x, def ) ) } ) )
+      var __t_T_1 = make( defstruct( array( 'T','U' ) ),
+        defstruct( array( 'Item' ) ),
+        defstruct( array( 'Item' ) )
+      )
 
-      var t = fn(unitVar0) __t.T_1.T.make( 'abc' )
+      var t = fn(unitVar0) make( __t_T_1.T, 'abc' )
       var u = {t}(null)
       var a = {u}
       var b = {u} """
@@ -350,24 +356,15 @@ let [<Fact>] ``Type alias`` () =
       
       let f (b: B<_>) = match b with X i -> i | Y _ -> 0 """
 
-    """ var __unioncase = defstruct( array( 'make', 'test' ) )
-        var __t = make( defstruct( array( 'A_1' ) ),
-          make( defstruct( array( 'X','Y' ) ),
-            {
-              var def = defstruct( array( 'Item' ) )
-              make( __unioncase,
-                fn (Item) make( def, Item ),
-                fn (x) isStructInstance( x, def ) ) },
-            {
-              var def = defstruct( array( 'Item' ) )
-              make( __unioncase,
-                fn (Item) make( def, Item ),
-                fn (x) isStructInstance( x, def ) ) } ) )
+    """ var __t_A_1 = make( defstruct( array( 'X','Y' ) ),
+          defstruct( array( 'Item' ) ),
+          defstruct( array( 'Item' ) )
+        )
 
-        var f = fn(b) if {__t.A_1.Y.test( b )} {{
-            0 }} else {{
-          { var i = {{b}.Item}
-            i } }}
+        var f = fn(b) if {isStructInstance( b, __t_A_1.Y )} {{
+          0 }} else {{
+            { var i = {{b}.Item}
+              i } }}
       """
 
 let [<Fact>] ``List`` () = 
@@ -377,23 +374,14 @@ let [<Fact>] ``List`` () =
 
       let f = function | x::xs -> x | _ -> 0 """
 
-    """ var __unioncase = defstruct( array( 'make', 'test' ) )
-        var __t = make( defstruct( array( 'List_1' ) ),
-        make( defstruct( array( 'op_Nil','op_ColonColon' ) ),
-          {
-            var def = defstruct( array(  ) )
-            make( __unioncase,
-              fn () make( def ),
-              fn (x) isStructInstance( x, def ) ) },
-          {
-            var def = defstruct( array( 'Head', 'Tail' ) )
-            make( __unioncase,
-              fn (Head, Tail) make( def, Head, Tail ),
-              fn (x) isStructInstance( x, def ) ) } ) )
-      
-        var f = fn(_arg1) if {__t.List_1.op_ColonColon.test( _arg1 )} {{ var xs = {{_arg1}.Tail}
-                                                                       { var x = {{_arg1}.Head}
-                                                                         x } }} else {0}
+    """ var __t_List_1 = make( defstruct( array( 'op_Nil','op_ColonColon' ) ),
+          defstruct( array(  ) ),
+          defstruct( array( 'Head', 'Tail' ) )
+        )
+
+        var f = fn(_arg1) if {isStructInstance( _arg1, __t_List_1.op_ColonColon )} {{ var xs = {{_arg1}.Tail}
+                                                                                    { var x = {{_arg1}.Head}
+                                                                                      x } }} else {0}
       """
 
 let [<Fact>] ``Multiline strings`` () = 

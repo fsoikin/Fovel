@@ -1,6 +1,7 @@
 ﻿module Fovel.FSCompiler
 open System.IO
 open System
+open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
@@ -22,7 +23,7 @@ let makeFileSystem (getFile: string -> byte[] option) (log: string -> obj -> uni
     member x.FileStreamWriteExistingShim n = log "FileStreamWriteExistingShim" n; ni()
     member x.GetFullPathShim fileName = log "GetFullPathShim" fileName; fileName
     member x.GetLastWriteTimeShim n = log "GetLastWriteTimeShim" n; time
-    member x.GetTempPathShim() = log "GetTempPathShim" ""; @"c:\work\fstemp"
+    member x.GetTempPathShim() = log "GetTempPathShim" ""; System.IO.Path.GetTempPath()
     member x.IsInvalidPathShim n = log "IsInvalidPathShim" n; false
     member x.IsPathRootedShim n = log "IsPathRootedShim" n; false
 
@@ -54,7 +55,7 @@ let parseProgram (sources: (string*string) seq) =
 
   let rec flattenDecls = 
     function
-    | FSharpImplementationFileDeclaration.Entity (_, subs) -> subs |> List.map flattenDecls |> List.concat
+    | FSharpImplementationFileDeclaration.Entity (_, subs) -> subs |> List.collect flattenDecls
     | FSharpImplementationFileDeclaration.MemberOrFunctionOrValue (v, vs, expr) -> [(Some (v, vs), expr)]
     | FSharpImplementationFileDeclaration.InitAction expr -> [(None, expr)]
 
@@ -64,9 +65,10 @@ let parseProgram (sources: (string*string) seq) =
 
   let res = checker.ParseAndCheckProject( opts ) |> Async.RunSynchronously
 
-  res.Errors |> Seq.map (Result.fail << Error.FSharpError) |> Result.sequence 
+  res.Errors 
+  |> Seq.filter (fun e -> e.Severity = FSharpErrorSeverity.Error)
+  |> Result.seqMap (Result.fail << Error.FSharpError)
   |> Result.map( fun _ -> 
     res.AssemblyContents.ImplementationFiles 
-    |> Seq.collect (fun f -> f.Declarations |> Seq.map flattenDecls)
-    |> Seq.concat 
+    |> Seq.collect (fun f -> f.Declarations |> Seq.collect flattenDecls)
     |> Seq.toList )

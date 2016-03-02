@@ -32,10 +32,9 @@ let ints = """
 let src = """
       module X
 
-      let s = """ + "\"\"\"" + """
-        some text
-        multiline
-        """ + "\"\"\"" + """
+      let s = [1;2]
+      let b = None
+      let c = Some "abc"
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]

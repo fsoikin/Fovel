@@ -13,48 +13,48 @@ let assignTypeNames program =
   let program = program |> List.map (Binding.mapType namedType)
   program
 
-let codeGlobals = """
-  var __unioncase = defstruct( array( 'make', 'test' ) )
-"""
-
 let (|SingleCaseUnion|_|) u = match u with Union (_, [_]) -> Some() | _ -> None
 
-let unionCaseCode case =
-  let fieldsQuoted = case.Fields |> Seq.map (sprintf "'%s'") |> String.concat ", "
-  let fields = case.Fields |> Seq.map sanitizeId |> String.concat ", "
+let typeName (NamedType (name,_)) = sprintf "__t_%s" name
+
+let unionCaseType case =
+  case.Fields |> Seq.map (sprintf "'%s'") |> String.concat ", "
+  |> sprintf "defstruct( array( %s ) )"
+
+let unionType cases =
+  sprintf "make( defstruct( array( '%s' ) ), \n\t%s\n )"
+  <| (cases |> Seq.map (fun c -> c.CaseId) |> String.concat "','")
+  <| (cases |> Seq.map unionCaseType |> String.concat ",\n\t")
+
+let refUnionCase typ case = sprintf "%s.%s" (typeName typ) case
+
+let createUnionCase typ case fields =
+  let fields = fields |> String.concat ", "
   let comma = if fields = "" then "" else ", "
-  sprintf """{
-    var def = defstruct( array( %s ) )
-    make( __unioncase, 
-      fn (%s) make( def%s%s ), 
-      fn (x) isStructInstance( x, def ) ) }"""
-  <| fieldsQuoted <| fields <| comma <| fields
+  sprintf "make( %s%s%s )" (refUnionCase typ case) comma fields
+
+let testUnionCase expr typ case =
+  sprintf "isStructInstance( %s, %s )" expr (refUnionCase typ case)
+
+let recordType fields =
+  fields |> String.concat "', '"
+  |> sprintf "defstruct( array( '%s' ) )"
+
+let createRecord typ fields =
+  let fields = fields |> String.concat ", "
+  let comma = if fields = "" then "" else ", "
+  sprintf "make( %s%s%s )" (typeName typ) comma fields
 
 let typeCode = function
   | NotImportant -> None
   | SingleCaseUnion -> None // Erase single-case unions
-
-  | Union(_, cases) -> 
-    sprintf "make( defstruct( array( '%s' ) ), \n%s )"
-    <| (cases |> Seq.map (fun c -> c.CaseId) |> String.concat "','")
-    <| (cases |> Seq.map unionCaseCode |> String.concat ",\n")
-    |> Some
-
-  | Record(_, []) -> Some "fn() hash()" // Empty structs shouldn't really happen, so we don't have to make this code nice
-
-  | Record(_, fields) -> 
-    let fieldsQuoted = fields |> String.concat "', '"
-    let fields = fields |> String.concat ", "
-    Some <| sprintf "{ var def = defstruct( array( '%s' ) )  fn( %s ) make( def, %s ) }" fieldsQuoted fields fields
+  | Record(_, []) -> None // Empty structs shouldn't really happen, so we don't have to make this code nice
+  | Union(_, cases) -> Some (unionType cases)
+  | Record(_, fields) -> Some (recordType fields)
 
 let typesCode types =
-  let gen (NamedType (name, typ)) = typeCode typ |> Option.map(fun c -> name, c)
-  let codes = types |> Seq.choose gen |> Seq.toList
-  let names = codes |> Seq.map (fst >> sprintf "'%s'") |> String.concat ", "
-  let defs = codes |> Seq.map snd |> String.concat ",\n\n"
-  if names = "" 
-    then "" 
-    else sprintf "make( defstruct( array( %s ) ), \n\n%s )" names defs
+  let gen (NamedType (_, typ) as t) = typeCode typ |> Option.map (sprintf "var %s = %s\n" (typeName t))
+  types |> Seq.choose gen |> String.concat ""
 
 let infixOpCode = function
   | InfixOpKind.Plus -> "+"
@@ -79,11 +79,12 @@ let constCode (c: obj) =
 
 let rec exprCode intrinsicCode expr = 
   let r = exprCode intrinsicCode
-  let rl = Seq.map r >> String.concat ", "
+  let rl = Seq.map r
+  let rlc = rl >> String.concat ", "
   match expr with
   | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
 
-  | E.NewTuple(_, items) -> sprintf "array( %s )" <| rl items
+  | E.NewTuple(_, items) -> sprintf "array( %s )" <| rlc items
   | E.TupleGet(_, index, tuple) -> sprintf "{%s}[%d]" <| r tuple <| index
 
   // Single-case unions are erased:
@@ -91,15 +92,15 @@ let rec exprCode intrinsicCode expr =
   | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion), _) -> "true"
   | E.UnionCaseGet(union, NamedType (_,SingleCaseUnion), _, _) -> r union
 
-  | E.UnionCase(NamedType (unionType,_), case, fields) -> sprintf "__t.%s.%s.make( %s )" unionType case (rl fields)
-  | E.UnionCaseTest(union, NamedType (unionType,_), case) -> sprintf "__t.%s.%s.test( %s )" unionType case (r union)
+  | E.UnionCase(unionType, case, fields) -> createUnionCase unionType case (rl fields)
+  | E.UnionCaseTest(union, unionType, case) -> testUnionCase (r union) unionType case
   | E.UnionCaseGet(union, _, _, field) -> sprintf "{%s}.%s" (r union) field
 
-  | E.NewRecord(NamedType (recordType,_), fields) -> sprintf "__t.%s( %s )" recordType (rl fields)
+  | E.NewRecord(recordType, fields) -> createRecord recordType (rl fields)
   | E.RecordFieldGet(_, record, field) -> sprintf "{%s}.%s" (r record) field
 
-  | E.NewArray (_, els) -> sprintf "array( %s )" (rl els)
-  | E.ArrayElement (arr, idx) -> sprintf "{%s}.%s" (r arr) (r idx)
+  | E.NewArray (_, els) -> sprintf "array( %s )" (rlc els)
+  | E.ArrayElement (arr, idx) -> sprintf "{%s}[%s]" (r arr) (r idx)
 
   | E.Function(parameters, body) -> sprintf "fn(%s) %s" (String.concat ", " parameters) (r body)
   | E.InfixOp(leftArg, op, rightArg) -> sprintf "{%s} %s {%s}" (r leftArg) (infixOpCode op) (r rightArg)
@@ -118,7 +119,8 @@ let rec exprCode intrinsicCode expr =
 
   // A call without arguments in F# means "generic value", as in "let v<'a> = f<'a>()"
   | E.Call(func, _, []) -> sprintf "{%s}" (r func)
-  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rl args)
+
+  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rlc args)
 
 
 let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
@@ -133,6 +135,5 @@ let bindingCode exprCode { Binding.Fn = fn; Expr = expr } =
 
 let programCode exprCode program = 
   let types = program |> List.collect Binding.allTypes |> List.distinct |> typesCode
-  let types = if types = "" then "" else sprintf "%s\nvar __t = %s" codeGlobals types
   let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
-  types + "\n" + code
+  types + code
