@@ -13,7 +13,10 @@ let compileSources srcs config =
 
 let compileSource src = compileSources ["file.fs", src]
 
-let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> Seq.filter ((<>) "") |> String.concat "\n"
+let patternInputRegex = System.Text.RegularExpressions.Regex("""(?'p'patternInput_\d+)_\d+""")
+let replacePatternInputs s = patternInputRegex.Replace(s, System.Text.RegularExpressions.MatchEvaluator( fun m -> m.Groups.["p"].Value ) )
+
+let split lines = (lines:string).Split('\n') |> Seq.map (fun s -> s.Trim()) |> Seq.filter ((<>) "") |> Seq.map replacePatternInputs |> String.concat "\n"
 
 let compileCompare fsharpSource shovelSource = 
   (compileSource fsharpSource Config.WithoutCoreLib) |> split 
@@ -139,7 +142,7 @@ let [<Fact>] ``Instance methods are not supported`` () =
   |> should equal [ "Instance methods are not supported: M.A.f"]
 
   
-let [<Fact>] ``Single-case unions are erased`` () = 
+let [<Fact>] ``Single-case single-datum unions are erased`` () = 
   compileCompare
     """
       module X
@@ -159,6 +162,52 @@ let [<Fact>] ``Single-case unions are erased`` () =
       var w = patternInput_8_2
       var p = {z} + {w} """
 
+let [<Fact>] ``Single-case unions with multiple data are not erased`` () = 
+  compileCompare
+    """
+      module X
+      type U = U of int*string
+
+      let x = U (0, "abc")
+      let y = U (1, "xyz")
+      let (U (a,b)) = x
+      let (U (c,d)) = y
+      let p = a + c """
+    """
+      var __t_U = make( defstruct( array( 'U' ) ),
+        defstruct( array( 'Item1', 'Item2' ) )
+      )
+
+      var x = make( __t_U.U, 0, 'abc' )
+      var y = make( __t_U.U, 1, 'xyz' )
+      var patternInput_7 = x
+      var b = {patternInput_7}.Item2
+      var a = {patternInput_7}.Item1
+      var patternInput_8_1 = y
+      var d = {patternInput_8_1}.Item2
+      var c = {patternInput_8_1}.Item1
+      var p = {a} + {c}
+      """
+
+      
+let [<Fact>] ``Single-case unions without data are not erased`` () = 
+  compileCompare
+    """
+      module X
+      type U = U
+
+      let x = U
+      let y = U
+      let p = x = y """
+    """
+      var __t_U = make( defstruct( array( 'U' ) ),
+        defstruct( array(  ) )
+      )
+
+      var x = make( __t_U.U )
+      var y = make( __t_U.U )
+      var p = {x} == {y}
+      """
   
 let [<Fact>] ``Unions`` () = 
   compileCompare

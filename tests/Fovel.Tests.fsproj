@@ -42,7 +42,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Expr.fs" />
-    <Compile Include="Integration.fs" />
+    <Compile Include="CodeGenEndToEnd.fs" />
     <Content Include="app.config" />
     <None Include="Script.fsx" />
     <None Include="paket.references" />
