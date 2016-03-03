@@ -13,7 +13,7 @@ let assignTypeNames program =
   let program = program |> List.map (Binding.mapType namedType)
   program
 
-let (|SingleCaseUnion|_|) u = match u with Union (_, [_]) -> Some() | _ -> None
+let (|SingleCaseUnion|_|) u = match u with Union (_, [{ Fields=[_] }]) -> Some() | _ -> None
 
 let typeName (NamedType (name,_)) = sprintf "__t_%s" name
 
