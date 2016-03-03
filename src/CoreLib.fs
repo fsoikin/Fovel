@@ -66,7 +66,7 @@ let parseIntrinsic (|ParseCustomIntrinsic|_|) = function
   | ParseCustomIntrinsic custom -> Some (Custom custom)
   | Fn <@ Array.length [||] @> -> Some ArrayLength
   | Fn <@ LanguagePrimitives.IntrinsicFunctions.SetArray [|0|] 0 0 @> -> Some ArraySet
-  | Fn <@ Fovel.Core.Array.create 0 @> -> Some ArrayCreate
+  | Fn <@ FovelCore.Array.create 0 @> -> Some ArrayCreate
   | Fn <@ failwith "" @> -> Some FailWith
   | Fn <@ Operators.seq [] @> -> Some SeqCreate
   | _ -> None
@@ -87,12 +87,12 @@ let wrapInstrinsics (parseCustomIntrinsic: 'a -> 'b option, customIntrinsicCode:
 let replaceSymbols allFns fn = 
   let findFnByFullName fullName = Seq.tryFind (FSharp.fnFullName >> sameFullName fullName) allFns
   match fn with
-    | Fn <@ ( .. ) 0 1 @>                       -> Some <@@ Fovel.Core.Seq.range 0 1 @@>
-    | Fn <@ ( .. .. ) 0 1 2 @>                  -> Some <@@ Fovel.Core.Seq.rangeStep 0 1 2 @@>
-    | Fn <@ Seq.toArray [] @>                   -> Some <@@ Fovel.Core.Seq.toArray Fovel.Core.Seq.Empty @@>
-    | Fn <@ Seq.toList [] @>                    -> Some <@@ Fovel.Core.Seq.toList Fovel.Core.Seq.Empty @@>
-    | Fn <@ List.fold (fun _ _ -> ()) () [] @>  -> Some <@@ Fovel.Core.List.fold (fun _ _ -> ()) () [] @@>
-    | Fn <@ List.map (fun _ -> ()) [] @>        -> Some <@@ Fovel.Core.List.map (fun _ -> ()) @@>
+    | Fn <@ ( .. ) 0 1 @>                       -> Some <@@ FovelCore.Seq.range 0 1 @@>
+    | Fn <@ ( .. .. ) 0 1 2 @>                  -> Some <@@ FovelCore.Seq.rangeStep 0 1 2 @@>
+    | Fn <@ Seq.toArray [] @>                   -> Some <@@ FovelCore.Seq.toArray FovelCore.Seq.Empty @@>
+    | Fn <@ Seq.toList [] @>                    -> Some <@@ FovelCore.Seq.toList FovelCore.Seq.Empty @@>
+    | Fn <@ List.fold (fun _ _ -> ()) () [] @>  -> Some <@@ FovelCore.List.fold (fun _ _ -> ()) () [] @@>
+    | Fn <@ List.map (fun _ -> ()) [] @>        -> Some <@@ FovelCore.List.map (fun _ -> ()) @@>
     | _ -> None
   |> Option.bind quotedFnFullName
   |> Option.bind findFnByFullName

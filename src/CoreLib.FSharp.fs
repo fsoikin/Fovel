@@ -1,4 +1,4 @@
-﻿module Fovel.Core
+﻿module FovelCore
 
 let inline flip f a b = f b a
 let inline id x = x
@@ -25,6 +25,8 @@ module Array =
 type Seq<'t> = Empty | Item of (unit -> 't * Seq<'t>)
 
 module Seq =
+  let empty<'t> = Seq<'t>.Empty
+
   let rangeStep start step end' = 
     let rec iter i = if i = end' then Empty else Item <| fun() -> (i, iter (i+step))
     iter start
