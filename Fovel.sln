@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Paket", "Paket", "{5B518D17-F5B9-49F5-9067-2104CBDEDD37}"
 	ProjectSection(SolutionItems) = preProject
 		paket.dependencies = paket.dependencies
+		paket.lock = paket.lock
 	EndProjectSection
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Fovel.Tests", "tests\Fovel.Tests.fsproj", "{7BF6A560-F5D1-4AFE-B841-E581F190375C}"

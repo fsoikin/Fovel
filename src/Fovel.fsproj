@@ -58,6 +58,45 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <Compile Include="Resources.fs" />
+    <EmbeddedResource Include="Resources.resx" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Common.fs" />
+    <Compile Include="Error.fs" />
+    <Compile Include="Expr.fs" />
+    <Compile Include="Binding.fs" />
+    <Compile Include="Type.fs" />
+    <Compile Include="ExprGen.fs" />
+    <Compile Include="BindingGen.fs" />
+    <Compile Include="TypeGen.fs" />
+    <Compile Include="SymbolGen.fs" />
+    <Compile Include="FSCompiler.fs" />
+    <Compile Include="CodeGen.fs" />
+    <Compile Include="CoreLib.FSharp.fs" />
+    <Compile Include="CoreLib.fs" />
+    <Compile Include="Transformation.fs" />
+    <Compile Include="Validation.fs" />
+    <Compile Include="Integration.fs" />
+    <None Include="paket.references" />
+    <None Include="Script.fsx" />
+    <None Include="Scripts\load-references-debug.fsx" />
+    <None Include="Scripts\load-project-debug.fsx" />
+    <None Include="..\packages\FSharp.Core\lib\net40\FSharp.Core.sigdata">
+      <Link>FSharp.Core.sigdata</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\packages\FSharp.Core\lib\net40\FSharp.Core.optdata">
+      <Link>FSharp.Core.optdata</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0')">
       <ItemGroup>
@@ -174,43 +213,4 @@
       </ItemGroup>
     </When>
   </Choose>
-  <ItemGroup>
-    <Compile Include="Resources.fs" />
-    <EmbeddedResource Include="Resources.resx" />
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Common.fs" />
-    <Compile Include="Error.fs" />
-    <Compile Include="Expr.fs" />
-    <Compile Include="Binding.fs" />
-    <Compile Include="Type.fs" />
-    <Compile Include="ExprGen.fs" />
-    <Compile Include="BindingGen.fs" />
-    <Compile Include="TypeGen.fs" />
-    <Compile Include="SymbolGen.fs" />
-    <Compile Include="FSCompiler.fs" />
-    <Compile Include="CodeGen.fs" />
-    <Compile Include="CoreLib.FSharp.fs" />
-    <Compile Include="CoreLib.fs" />
-    <Compile Include="Transformation.fs" />
-    <Compile Include="Validation.fs" />
-    <Compile Include="Integration.fs" />
-    <None Include="paket.references" />
-    <None Include="Script.fsx" />
-    <None Include="Scripts\load-references-debug.fsx" />
-    <None Include="Scripts\load-project-debug.fsx" />
-    <None Include="..\packages\FSharp.Core\lib\net40\FSharp.Core.sigdata">
-      <Link>FSharp.Core.sigdata</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\packages\FSharp.Core\lib\net40\FSharp.Core.optdata">
-      <Link>FSharp.Core.optdata</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
 </Project>

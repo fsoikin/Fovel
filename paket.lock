@@ -3,11 +3,11 @@ NUGET
   specs:
     FsCheck (2.2.4)
       FSharp.Core (>= 3.1.2.5)
-    FSharp.Compiler.Service (2.0.0.3)
+    FSharp.Compiler.Service (2.0.0.6)
     FSharp.Core (4.0.0.1) - redirects: on
-    FSharpx.Collections (1.13.4)
+    FSharpx.Collections (1.14.0)
       FSharp.Core (>= 3.0.0)
-    FSharpx.Core (1.8.41)
+    FSharpx.Core (1.8.36)
     FsUnit.xUnit (1.4.1)
       FSharp.Core (>= 3.1.2.5)
       xunit (2.1.0)
