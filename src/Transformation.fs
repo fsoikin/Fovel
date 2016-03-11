@@ -26,13 +26,10 @@ let private inlineExpression replaceNestedCalls args typeArgs (fn,parms,body) =
 
 let inlineFunctions program =
   let allInlineBindings = program |> List.choose fnDefinition |> List.filter (fstt >> FSharp.isInline)
-  printfn "A"
 
   let rec replaceInlineFnRefs = function
     | E.Call (E.SymRef fn, typeArgs, args) as e when FSharp.isInline fn -> 
-        printfn "Inline %A - %A" fn (findBinding allInlineBindings fn)
         findBinding allInlineBindings fn
-        |> Option.map( fun x -> printfn "%A" x; x)
         |> Option.map (inlineExpression replaceInlineFnRefs args typeArgs)
         |> Option.orElse e
 
