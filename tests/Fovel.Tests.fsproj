@@ -40,7 +40,6 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Expr.fs" />
     <Compile Include="CodeGenEndToEnd.fs" />
     <Content Include="app.config" />

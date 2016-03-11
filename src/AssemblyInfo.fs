@@ -1,41 +1,15 @@
 ﻿namespace Fovel.AssemblyInfo
-
 open System.Reflection
-open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
-// General Information about an assembly is controlled through the following 
-// set of attributes. Change these attribute values to modify the information
-// associated with an assembly.
 [<assembly: AssemblyTitle("Fovel")>]
-[<assembly: AssemblyDescription("")>]
-[<assembly: AssemblyConfiguration("")>]
-[<assembly: AssemblyCompany("")>]
+[<assembly: AssemblyDescription("Cross-compiler from a subset of F# to Shovel VM byte code.")>]
+[<assembly: AssemblyCompany("erecruit")>]
 [<assembly: AssemblyProduct("Fovel")>]
-[<assembly: AssemblyCopyright("Copyright ©  2016")>]
-[<assembly: AssemblyTrademark("")>]
-[<assembly: AssemblyCulture("")>]
+[<assembly: AssemblyCopyright("Copyright © erecruit 2016")>]
 
-// Setting ComVisible to false makes the types in this assembly not visible 
-// to COM components.  If you need to access a type in this assembly from 
-// COM, set the ComVisible attribute to true on that type.
-[<assembly: ComVisible(false)>]
-
-// The following GUID is for the ID of the typelib if this project is exposed to COM
-[<assembly: Guid("4a9c2fc6-69a2-4519-8224-39267bdbabd4")>]
-
-// Version information for an assembly consists of the following four values:
-// 
-//       Major Version
-//       Minor Version 
-//       Build Number
-//       Revision
-// 
-// You can specify all the values or you can default the Build and Revision Numbers 
-// by using the '*' as shown below:
-// [<assembly: AssemblyVersion("1.0.*")>]
-[<assembly: AssemblyVersion("1.0.0.0")>]
-[<assembly: AssemblyFileVersion("1.0.0.0")>]
+[<assembly: AssemblyVersion("0.1.0.0")>]
+[<assembly: AssemblyFileVersion("0.1.0.0")>]
 
 do
     ()
