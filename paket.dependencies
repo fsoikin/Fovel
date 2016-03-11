@@ -6,6 +6,13 @@ nuget FSharpx.Core
 nuget FSharpx.Collections
 
 nuget Xunit >= 2.1.0
-nuget FsUnit.xUnit
+nuget FsUnit.xUnit ~> 1.4 framework: >= net45
 nuget FsCheck
+nuget xunit.runner.console ~> 2.1 framework: >= net45
 nuget xunit.runner.visualstudio >= 2.1.0 version_in_path: true
+
+
+group Build
+source https://www.nuget.org/api/v2/
+
+nuget FAKE
