@@ -32,7 +32,7 @@ let ints = """
 let src = """
       module X
 
-      let s = [1;2]
+      let s = [1;"2"]
       let b = None
       let c = Some "abc"
       """

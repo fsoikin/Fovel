@@ -89,8 +89,8 @@ let replaceSymbols allFns fn =
   match fn with
     | Fn <@ ( .. ) 0 1 @>                       -> Some <@@ FovelCore.Seq.range 0 1 @@>
     | Fn <@ ( .. .. ) 0 1 2 @>                  -> Some <@@ FovelCore.Seq.rangeStep 0 1 2 @@>
-    | Fn <@ Seq.toArray [] @>                   -> Some <@@ FovelCore.Seq.toArray FovelCore.Seq.Empty @@>
-    | Fn <@ Seq.toList [] @>                    -> Some <@@ FovelCore.Seq.toList FovelCore.Seq.Empty @@>
+    | Fn <@ Seq.toArray [] @>                   -> Some <@@ FovelCore.Seq.toArray FovelCore.Seq.empty @@>
+    | Fn <@ Seq.toList [] @>                    -> Some <@@ FovelCore.Seq.toList FovelCore.Seq.empty @@>
     | Fn <@ List.fold (fun _ _ -> ()) () [] @>  -> Some <@@ FovelCore.List.fold (fun _ _ -> ()) () [] @@>
     | Fn <@ List.map (fun _ -> ()) [] @>        -> Some <@@ FovelCore.List.map (fun _ -> ()) @@>
     | _ -> None
