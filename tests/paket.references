@@ -5,3 +5,4 @@ Xunit
 FsUnit.xUnit
 FsCheck
 xunit.runner.visualstudio
+Unquote

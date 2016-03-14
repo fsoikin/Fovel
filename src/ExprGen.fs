@@ -56,6 +56,8 @@ let rec parseDecisionTree parseExpr (branches: (FSharpMemberOrFunctionOrValue li
   | _ -> Result.fail <| Error.MalformedDecisionTree expr
 
 
+let rec isValueType (t: FSharpType) = t.HasTypeDefinition && t.TypeDefinition.IsValueType
+
 let rec exprToFovel intrinsic expr : Result<_,_> =
   let r = exprToFovel intrinsic
   let rl = Seq.map r >> Result.sequence
@@ -83,6 +85,8 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   
   // Primitives
   | BasicPatterns.Const (c, typ) -> retn <| E.Const( c, typ )
+  | BasicPatterns.DefaultValue t when not (isValueType t) -> retn <| E.Const( null, t )
+  | BasicPatterns.DefaultValue _ as e -> Result.fail (Error.UnsupportedExpression e)
   | BasicPatterns.Value v -> retn (E.SymRef v)
   | BasicPatterns.Lambda (sym, expr) -> E.Function <! (retn [sym], r expr)
 
