@@ -116,5 +116,5 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   // Arrays
   | BasicPatterns.NewArray (typ, elements) -> E.NewArray <! (retn typ, rl elements)
 
-  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.InstanceMethodsNotSupported fn)
+  | BasicPatterns.Call (Some _, fn, _, _, _) -> Result.fail (Error.InstanceMethodsNotSupported (expr.Range, fn))
   | e -> Result.fail (Error.UnsupportedExpression e)

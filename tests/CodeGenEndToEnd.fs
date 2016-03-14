@@ -139,7 +139,7 @@ let [<Fact>] ``Instance methods are not supported`` () =
       let x = a.f() """ ]
   |> Result.mapError Error.formatAll
   |> getErrors
-  |> should equal [ "Instance methods are not supported: M.A.f"]
+  |> should equal [ "a.fs (7, 14): Instance methods are not supported: M.A.f"]
 
   
 let [<Fact>] ``Single-case single-datum unions are erased`` () = 
