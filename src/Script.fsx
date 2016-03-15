@@ -32,16 +32,14 @@ let ints = """
 let src = """
       module X
 
-      let s = [1;"2"]
-      let b = None
-      let c = Some "abc"
+      let a = box 5
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
 
 
 let e = 
-  fsharpSourcesToShovel Config.WithoutCoreLib srcs 
+  fsharpSourcesToShovel Config.Default srcs 
   |> Result.mapError Error.formatAll
 
 //let ee =

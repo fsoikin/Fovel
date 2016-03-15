@@ -1,5 +1,6 @@
 #r @"packages/build/FAKE/tools/FakeLib.dll"
 open Fake
+open Fake.Testing.XUnit2
 
 let config = getBuildParamOrDefault "Config" "Debug"
 
@@ -20,7 +21,7 @@ Target "Clean" <| fun _ ->
 
 Target "RunTests" <| fun _ ->
   [sprintf "tests/bin/%s/Fovel.Tests.dll" config]
-  |> Fake.Testing.XUnit2.xUnit2 id
+  |> xUnit2 (fun p -> { p with MaxThreads = MaxThreads 1 })
 
 "Build" ==> "BuildTests" ==> "RunTests"
 

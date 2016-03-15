@@ -43,3 +43,16 @@ let [<Fact>] ``Null`` () =
           Const (null,"Microsoft.FSharp.Core.string") )
     ]
 
+
+let [<Fact>] ``Sequence`` () = 
+  compareExprs
+    """
+      module M
+      let f x = ()
+      let x = f "abc"; 5 """
+
+    [ Const (null,"Microsoft.FSharp.Core.unit")
+      Sequence
+        [ Call (SymRef "f", ["Microsoft.FSharp.Core.string"], [Const ("abc","Microsoft.FSharp.Core.string")])
+          Const (5,"Microsoft.FSharp.Core.int") ] ]
+

@@ -427,3 +427,64 @@ let [<Fact>] ``Multiline strings`` () =
             some text
             multiline
             ' """
+
+let [<Fact>] ``Box is turned into identity`` () = 
+  compileCompareWithCoreLib
+    """
+      module X
+
+      let a = box 5
+      let b = box "abc" """
+
+    """ 
+      var a__1 = { var x__20 = {5} 
+                   x__20 }
+      var b__1 = { var x__20 = {'abc'} 
+                   x__20 }
+    """
+
+
+let [<Fact>] ``Array set`` () = 
+  compileCompareWithCoreLib
+    """
+      module X
+
+      let a = [|1; 2|]
+      a.[1] <- 5 """
+
+    """ 
+      var a__1 = array( 1, 2 )
+      {a__1}[1] = {5} """
+
+
+let [<Fact>] ``Lambda expressions`` () = 
+  compileCompare
+    """
+      module X
+
+      let ap f x = f x
+      let g = ap (fun z -> z + 5)
+      let z = g 5 
+      let w = ap (fun z -> z + 6) 7 """
+
+    """ 
+      var ap = fn(f, x) {f}(x)
+      var g = { var f__1 = {fn(z) {z} + {5}}
+                fn(x__1) {ap}(f__1, x__1) }
+      var z__1 = {{g}}(5)
+      var w = {ap}(fn(z__2) {z__2} + {6}, 7)
+    """
+
+let [<Fact>] ``Sequence`` () = 
+  compileCompare
+    """
+      module X
+
+      let f x = ()
+      let g = f 5; 6 """
+
+    """ 
+      var f = fn(x) null
+      var g = { {f}(5) 
+                6 }
+    """

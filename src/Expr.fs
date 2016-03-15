@@ -7,6 +7,7 @@ type InfixOpKind =
   
 type E<'Type, 'Symbol, 'Intrinsic> =
   | Intrinsic of fn: 'Intrinsic * args: E<'Type, 'Symbol, 'Intrinsic> list
+  | IntrinsicAsValue of fn: 'Intrinsic * argsCount: int
   | NewTuple of tupleType: 'Type * items: E<'Type, 'Symbol, 'Intrinsic> list
   | TupleGet of tupleType: 'Type * index: int * tuple: E<'Type, 'Symbol, 'Intrinsic>
   | UnionCase of unionType: 'Type * case: Identifier * fields: E<'Type, 'Symbol, 'Intrinsic> list
@@ -47,6 +48,7 @@ module Expr =
     | E.RecordFieldGet (typ, record, field) -> E.RecordFieldGet (fTyp typ, fExpr record, field)
     | E.NewArray (typ, els) -> E.NewArray (fTyp typ, fl els)
     | E.Intrinsic (i, args) -> E.Intrinsic(fIntrinsic i, fl args)
+    | E.IntrinsicAsValue (i, argsCount) -> E.IntrinsicAsValue (fIntrinsic i, argsCount)
     | E.Const (o, t) -> E.Const( o, fTyp t )
     | E.Function (ps, body) -> E.Function( ps |> List.map fSym, fExpr body )
     | E.SymRef s -> E.SymRef (fSym s)
@@ -61,6 +63,7 @@ module Expr =
     let rl = List.collect r
     match expr with
     | E.Intrinsic (_, es) | E.Sequence es -> rl es
+    | E.IntrinsicAsValue _ -> []
     | E.NewTuple (t, items) | E.UnionCase (t, _, items) | E.NewRecord (t, items) | E.NewArray (t, items) ->  t :: (rl items)
     | E.UnionCaseTest (e, t, _) | E.UnionCaseGet (e, t, _, _) | E.TupleGet (t, _, e) | E.RecordFieldGet (t, e, _) -> t :: (r e)
     | E.ArrayElement (arr, idx) -> rl [arr; idx]
@@ -77,6 +80,7 @@ module Expr =
     let rec rl es = Seq.collect r es
     and r = function
     | E.Intrinsic (_, es) | E.Sequence es -> rl es
+    | E.IntrinsicAsValue _ -> Seq.empty
     | E.NewTuple (_, items) | E.UnionCase (_, _, items) | E.NewRecord (_, items) | E.NewArray (_, items) ->  rl items
     | E.UnionCaseTest (e, _, _) | E.UnionCaseGet (e, _, _, _) | E.TupleGet (_, _, e ) | E.RecordFieldGet (_, e, _) -> r e
     | E.Function (ss, e) -> Seq.append ss (r e)

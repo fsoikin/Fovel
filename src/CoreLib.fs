@@ -25,8 +25,10 @@ let moduleName (moduleType: System.Type) =
 
 let rec fullModuleName (moduleType: System.Type) =
   if moduleType.IsNested 
-    then sprintf "%s.%s" (fullModuleName moduleType.DeclaringType) (moduleName moduleType) 
-    else sprintf "%s.%s" moduleType.Namespace (moduleName moduleType)
+    then [ fullModuleName moduleType.DeclaringType; moduleName moduleType ]
+    else [ moduleType.Namespace; moduleName moduleType ]
+  |> Seq.filter (fun s -> s <> "" && s <> null)
+  |> String.concat "." 
 
 let quotedFnFullName = function
   | FSharp.Quotations.Patterns.Call (_,f,_) -> 
@@ -42,12 +44,12 @@ let quotedFnFullName = function
   | _ -> None
 
 let sameFullName a b = 
-#if INTERACTIVE
-  let sanitize (s: string) = if s.StartsWith "FSI_" then s.Substring( s.IndexOf('.')+1 ) else s
-#else
-  let sanitize = id
-#endif
-  (sanitize a) = (sanitize b)
+  #if INTERACTIVE
+    let sanitize (s: string) = if s.StartsWith "FSI_" then s.Substring( s.IndexOf('.')+1 ) else s
+  #else
+    let sanitize = id
+  #endif
+    (sanitize a) = (sanitize b)
 
 let (|Fn|_|) quote fn = 
   match quotedFnFullName quote with 
@@ -76,7 +78,7 @@ let intrinsicCode customIntrinsicCode intr args =
   | Custom c, _ -> customIntrinsicCode c args
   | ArrayLength, [a] -> sprintf "length( %s )" a
   | ArrayCreate, [size] -> sprintf "arrayN( %s )" size
-  | ArraySet, [arr; idx; value] -> sprintf "(%s).[%s] = (%s)" arr idx value
+  | ArraySet, [arr; idx; value] -> sprintf "{%s}[%s] = {%s}" arr idx value
   | SeqCreate, [s] -> s
   | FailWith, args -> sprintf "panic( %s )" (defaultArg (List.tryHead args) "")
   | intr, args -> sprintf "panic( 'Intrinsic %A applied to %d args' )" intr (List.length args)
@@ -93,6 +95,7 @@ let replaceSymbols allFns fn =
     | Fn <@ Seq.toList [] @>                    -> Some <@@ FovelCore.Seq.toList FovelCore.Seq.empty @@>
     | Fn <@ List.fold (fun _ _ -> ()) () [] @>  -> Some <@@ FovelCore.List.fold (fun _ _ -> ()) () [] @@>
     | Fn <@ List.map (fun _ -> ()) [] @>        -> Some <@@ FovelCore.List.map (fun _ -> ()) @@>
+    | Fn <@ box () @>                           -> printfn "A"; Some <@@ FovelCore.id () @@>
     | _ -> None
   |> Option.bind quotedFnFullName
   |> Option.bind findFnByFullName

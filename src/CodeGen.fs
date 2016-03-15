@@ -83,6 +83,9 @@ let rec exprCode intrinsicCode expr =
   let rlc = rl >> String.concat ", "
   match expr with
   | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
+  | E.IntrinsicAsValue (fn, argsCount) -> 
+    let args = List.init argsCount (sprintf "_%d")
+    sprintf "fn(%s) %s" (args |> String.concat ", ") (intrinsicCode fn args)
 
   | E.NewTuple(_, items) -> sprintf "array( %s )" <| rlc items
   | E.TupleGet(_, index, tuple) -> sprintf "{%s}[%d]" <| r tuple <| index
@@ -112,7 +115,7 @@ let rec exprCode intrinsicCode expr =
     let bindings = bindings |> Seq.map formatBinding |> String.concat "\n"
     sprintf "{ %s\n%s }" bindings (r body)
 
-  | E.Sequence es -> es |> Seq.map r |> String.concat "\n"
+  | E.Sequence es -> sprintf "{ %s }" (es |> Seq.map r |> String.concat "\n")
 
   | E.Conditional(test, then', else') -> sprintf "if {%s} {%s} else {%s}" (r test) (r then') (r else')
   | E.TraitCall _ -> sprintf "panic( 'Unresolved static generic constraint' )"

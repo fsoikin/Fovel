@@ -65,6 +65,7 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   let (|Intrinsic|_|) e = intrinsic e
   match expr with
   | BasicPatterns.Call (None, Intrinsic i, _, _, args) -> E.Intrinsic <! ( retn i, rl args )
+  | BasicPatterns.Value (Intrinsic i as fn) -> retn (E.IntrinsicAsValue (i, fn.CurriedParameterGroups |> Seq.sumBy Seq.length))
 
   // Built-in intrinsics
   | BasicPatterns.Call (None, Intrinsics.InfixOperator op, _, _, [arg1; arg2]) -> E.InfixOp <!! (r arg1, retn op, r arg2)
