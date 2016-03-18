@@ -16,7 +16,7 @@ let [<Fact>] ``Basic`` () =
       let x = Seq.singleton 5 
     """
     """
-      var x = foo 5 bar """
+      var x = { var _0 = 5 foo _0 bar } """
 
 
 let [<Fact>] ``Code inside intrinsic definition isn't validated`` () = 
@@ -34,7 +34,7 @@ let [<Fact>] ``Code inside intrinsic definition isn't validated`` () =
       let x = the_intrinsic 5 6
     """
     """
-      var x = foo """
+      var x = { var _0 = 5 var _1 = 6 foo } """
 
 let [<Fact>] ``Used as values`` () = 
   let parseIntrinsic (fn: FSharp.fn) = if fn.LogicalName = "intr" then Some() else None
@@ -62,7 +62,8 @@ let [<Fact>] ``Used as values`` () =
       ap intr [|"a"|] 0
     """
     """
-      { var f = {fn(_0, _1) foo( _0, _1 )}
+      { 
+        var f = {fn(_0, _1) foo( _0, _1 )}
         var x = {array( 'a' )}
         var y = {0}
-        {f}(x, y) } """
+        {f}(x, y)} """

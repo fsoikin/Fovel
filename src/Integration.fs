@@ -10,7 +10,6 @@ type Config<'Intrinsic> =
     GenerateIntrinsicCode: 'Intrinsic -> Code list -> Code
     ReplaceFunctions: FSharpMemberOrFunctionOrValue seq -> FSharpMemberOrFunctionOrValue -> FSharpMemberOrFunctionOrValue
     FSharpPrelude: Code option
-    ShovelPrelude: Code option
   }
 
 module Config =
@@ -18,15 +17,13 @@ module Config =
     ParseIntrinsic = CoreLib.parseIntrinsic config.ParseIntrinsic
     GenerateIntrinsicCode = CoreLib.intrinsicCode config.GenerateIntrinsicCode
     ReplaceFunctions = fun all -> (CoreLib.replaceSymbols all) >> (config.ReplaceFunctions all)
-    FSharpPrelude = Some (CoreLib.prelude() + (config.FSharpPrelude |> Option.orElse ""))
-    ShovelPrelude = config.ShovelPrelude }
+    FSharpPrelude = Some (CoreLib.prelude() + (config.FSharpPrelude |> Option.orElse "")) }
 
   let WithoutCoreLib = { 
     ParseIntrinsic = fun _ -> None
     GenerateIntrinsicCode = fun () _ -> ""
     ReplaceFunctions = fun _ -> id
-    FSharpPrelude = None
-    ShovelPrelude = None }
+    FSharpPrelude = None }
 
   let Default = WithoutCoreLib |> withCoreLib
 
@@ -38,10 +35,6 @@ let fsharpProgramToFovel parseIntrinsic program =
 
 let eraseFSharpEntities program =
   program |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
-
-let generateShovelCode generateIntrinsicCode prelude = 
-  let prependPrelude = match prelude with Some code -> (+) code | None -> id
-  CodeGen.programCode (CodeGen.exprCode generateIntrinsicCode) >> prependPrelude
 
 let replaceFunctions replaceCall program = 
   let functionOfBinding = function { Binding.Fn = Some(fn,_) } -> Some fn | _ -> None
@@ -67,4 +60,6 @@ let fsharpSourcesToShovel config sources =
   |*> Transformation.applyAll
   >>= Validation.applyAll
   |*> eraseFSharpEntities
-  |*> generateShovelCode config.GenerateIntrinsicCode config.ShovelPrelude
+  |*> CodeGen.programCode (CodeGen.exprCode config.GenerateIntrinsicCode)
+  |*> PrettyPrint.print
+  |*> String.concat ""

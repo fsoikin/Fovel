@@ -78,7 +78,7 @@ let intrinsicCode customIntrinsicCode intr args =
   | Custom c, _ -> customIntrinsicCode c args
   | ArrayLength, [a] -> sprintf "length( %s )" a
   | ArrayCreate, [size] -> sprintf "arrayN( %s )" size
-  | ArraySet, [arr; idx; value] -> sprintf "{%s}[%s] = {%s}" arr idx value
+  | ArraySet, [arr; idx; value] -> sprintf "%s[%s] = %s" arr idx value
   | SeqCreate, [s] -> s
   | FailWith, args -> sprintf "panic( %s )" (defaultArg (List.tryHead args) "")
   | intr, args -> sprintf "panic( 'Intrinsic %A applied to %d args' )" intr (List.length args)

@@ -42,9 +42,9 @@
   <ItemGroup>
     <Compile Include="Common.fs" />
     <Compile Include="Expr.fs" />
+    <Compile Include="ExprGen.fs" />
     <Compile Include="CodeGenEndToEnd.fs" />
     <Compile Include="Intrinsics.fs" />
-    <Compile Include="ExprGen.fs" />
     <Content Include="app.config" />
     <None Include="paket.references" />
     <None Include="..\packages\FSharp.Core\lib\net40\FSharp.Core.optdata">

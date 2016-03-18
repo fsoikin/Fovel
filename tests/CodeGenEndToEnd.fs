@@ -18,7 +18,7 @@ let [<Fact>] ``Basic`` () =
       var f = fn(x__1) {x__1} + {1}
       var g = fn(a, b) {a}(b)
       var y = {f}(5)
-      var c = {g}(f, 8)"""
+      var c = {g}(f, 8) """
 
 let [<Fact>] ``Operators as functions`` () = 
   compileCompare
@@ -31,8 +31,9 @@ let [<Fact>] ``Operators as functions`` () =
     """
       var f = fn(x) fn(y) {x} + {y}
       var x__1 = {{{f}}(1)}(2)
-      var y__1 = { var x__2 = {5}
-                   fn(y__2) {x__2} + {y__2} }
+      var y__1 = { 
+        var x__2 = {5}
+        fn(y__2) {x__2} + {y__2}}
       var z = {{y__1}}(6) """
 
 let [<Fact>] ``Conditional`` () = 
@@ -58,11 +59,14 @@ let [<Fact>] ``Complex functions`` () =
       let g = f 5
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = {{x} + {6}}
-                       { var y__1 = {{y} - {6}}
-                         {z} * {y__1} } }
-      var g = { var x__1 = {5}
-                fn(y__2) {f}(x__1, y__2) }
+      var f = fn(x, y) { 
+        var z = {{x} + {6}} 
+        { 
+          var y__1 = {{y} - {6}}
+          {z} * {y__1}}}
+      var g = { 
+        var x__1 = {5}
+        fn(y__2) {f}(x__1, y__2)}
       var h = {{g}}(7) """
 
 let [<Fact>] ``Recursive functions`` () = 
@@ -76,9 +80,11 @@ let [<Fact>] ``Recursive functions`` () =
       and g x = f x (x+1)
       let h = g 7 + f 5 8 """
     """
-      var f = fn(x, y) { var z = {{x} + {6}}
-                       { var y__1 = {{y} - {6}}
-                         {z} * {{g}(y__1)} } }
+      var f = fn(x, y) { 
+        var z = {{x} + {6}}
+        { 
+          var y__1 = {{y} - {6}}
+          {z} * {{g}(y__1)}}}
       var g = fn(x__1) {f}(x__1, {x__1} + {1})
       var h = {{g}(7)} + {{f}(5, 8)} """
 
@@ -107,8 +113,7 @@ let [<Fact>] ``Instance methods are not supported`` () =
     ParseIntrinsic = fun f -> if f.FullName.EndsWith("failwith") then Some() else None
     GenerateIntrinsicCode = fun _ _ -> "0"
     ReplaceFunctions = fun _ -> id
-    FSharpPrelude = None
-    ShovelPrelude = None }
+    FSharpPrelude = None }
   fsharpSourcesToShovel config
     ["a.fs","""
       module M
@@ -155,8 +160,7 @@ let [<Fact>] ``Single-case unions with multiple data are not erased`` () =
       let p = a + c """
     """
       var __t_U = make( defstruct( array( 'U' ) ),
-        defstruct( array( 'Item1', 'Item2' ) )
-      )
+        defstruct( array( 'Item1', 'Item2' ) ))
 
       var x = make( __t_U.U, 0, 'abc' )
       var y = make( __t_U.U, 1, 'xyz' )
@@ -181,8 +185,7 @@ let [<Fact>] ``Single-case unions without data are not erased`` () =
       let p = x = y """
     """
       var __t_U = make( defstruct( array( 'U' ) ),
-        defstruct( array(  ) )
-      )
+        defstruct( array(  ) ))
 
       var x = make( __t_U.U )
       var y = make( __t_U.U )
@@ -204,20 +207,23 @@ let [<Fact>] ``Unions`` () =
       var __t_U = make( defstruct( array( 'U','W','Z' ) ),
         defstruct( array( 'Item' ) ),
         defstruct( array( 'ss' ) ),
-        defstruct( array( 'a', 'b' ) )
-      )
+        defstruct( array( 'a', 'b' ) ))
 
       var x = make( __t_U.U, 0 )
       var y = make( __t_U.W, '1' )
       var z = make( __t_U.Z, 5, true )
       var a = if {isStructInstance( x, __t_U.W )} {{
-        { var j = {{x}.ss}
-          5 } }} else {if {isStructInstance( x, __t_U.Z )} {{
-            { var k = {{x}.a}
-            { var b = {{x}.b}
-              k } } }} else {{
-                { var i = {{x}.Item}
-                  i } }}} """
+        { 
+          var j = {{x}.ss}
+          5}}} else {if {isStructInstance( x, __t_U.Z )} {{
+            { 
+              var k = {{x}.a}
+              { 
+                var b = {{x}.b}
+                k}}}} else {{
+                  { 
+                    var i = {{x}.Item}
+                    i}}}} """
 
 let [<Fact>] ``Records`` () = 
   compileCompare
@@ -235,21 +241,22 @@ let [<Fact>] ``Records`` () =
       var __t_R = defstruct( array( 'A', 'B', 'C' ) )
       var __t_U = make( defstruct( array( 'X','Y' ) ),
         defstruct( array( 'Item' ) ),
-        defstruct( array(  ) )
-      )
+        defstruct( array(  ) ))
 
       var r1 = make( __t_R, 'abc', 5, make( __t_U.Y ) )
-      var r2 = { var C = {make( __t_U.X, 5 )}
-                 make( __t_R, {r1}.A, {r1}.B, C ) }
+      var r2 = { 
+        var C = {make( __t_U.X, 5 )}
+        make( __t_R, {r1}.A, {r1}.B, C )}
 
       var patternInput_9 = r2
       var i = {patternInput_9}.B
       var a = {patternInput_9}.A
 
       var m = if {isStructInstance( {r1}.C, __t_U.X )} {{
-        { var x = {{{r1}.C}.Item}
-          x } }} else {{
-                        1 }} """
+        { 
+          var x = {{{r1}.C}.Item}
+          x}}} else {{
+          1}} """
 
 let [<Fact>] ``Inlining`` () = 
   compileCompare
@@ -262,19 +269,24 @@ let [<Fact>] ``Inlining`` () =
       let z = ap f 10 
       let w = ap (g 5) 10 """
     """
-      var y = { var x = {6}
-                {x} + {5} }
+      var y = { 
+        var x = {6}
+        {x} + {5}}
 
-      var z = { var f = {fn(x) {x} + {5}}
-                var x__1 = {10}
-                {f}(x__1) }
+      var z = { 
+        var f = {fn(x) {x} + {5}}
+        var x__1 = {10}
+        {f}(x__1)}
 
-      var w = { var f = {{ var x__2 = {5}
-                           fn(y__1) { var x__3 = {x__2}
-                                      var y__2 = {y__1}
-                                      {x__3} + {y__2} } }}
-                var x__1 = {10}
-                {f}(x__1) }"""
+      var w = { 
+        var f = {{ 
+          var x__2 = {5}
+          fn(y__1) { 
+            var x__3 = {x__2}
+            var y__2 = {y__1}
+            {x__3} + {y__2}}}}
+          var x__1 = {10}
+          {f}(x__1)}"""
 
 
 let [<Fact>] ``Statically resolved type constraints`` () = 
@@ -310,20 +322,25 @@ let [<Fact>] ``Statically resolved type constraints`` () =
       var get_X__1 = fn(unitVar0__1) 'xyz'
       var Y__1 = fn(i__1) {i__1} - {8}
 
-      var a = { var unitVar0__2 = {null}
-                {get_X}(null) }
+      var a = { 
+        var unitVar0__2 = {null}
+        {get_X}(null)}
 
-      var b = { var x__1 = {5}
-                {Y}(x__1) }
+      var b = { 
+        var x__1 = {5}
+        {Y}(x__1)}
 
-      var c = { var x__2 = {'123'}
-                {Z}(x__2) } 
+      var c = { 
+        var x__2 = {'123'}
+        {Z}(x__2)} 
                 
-      var p = { var unitVar0__2 = {null}
-                {get_X__1}(null) }
+      var p = { 
+        var unitVar0__2 = {null}
+        {get_X__1}(null)}
 
-      var q = { var x__1 = {10}
-                {Y__1}(x__1) }"""
+      var q = { 
+        var x__1 = {10}
+        {Y__1}(x__1)} """
 
 let [<Fact>] ``Statically resolved type constraints - parameterless`` () = 
   compileCompare
@@ -345,10 +362,10 @@ let [<Fact>] ``Statically resolved type constraints - parameterless`` () =
       var get_X__1 = fn(unitVar0__1) 'xyz'
     
       var a = {
-        {get_X}(null) }
+        {get_X}(null)}
 
       var b = {
-        {get_X__1}(null) } """
+        {get_X__1}(null)} """
 
 
 let [<Fact>] ``Generic values`` () = 
@@ -366,8 +383,7 @@ let [<Fact>] ``Generic values`` () =
     """
       var __t_T_1 = make( defstruct( array( 'T','U' ) ),
         defstruct( array( 'Item' ) ),
-        defstruct( array( 'Item' ) )
-      )
+        defstruct( array( 'Item' ) ))
 
       var t = fn(unitVar0) make( __t_T_1.T, 'abc' )
       var u = {t}(null)
@@ -387,13 +403,13 @@ let [<Fact>] ``Type alias`` () =
 
     """ var __t_A_1 = make( defstruct( array( 'X','Y' ) ),
           defstruct( array( 'Item' ) ),
-          defstruct( array( 'Item' ) )
-        )
+          defstruct( array( 'Item' ) ))
 
         var f = fn(b) if {isStructInstance( b, __t_A_1.Y )} {{
-          0 }} else {{
-            { var i = {{b}.Item}
-              i } }}
+          0}} else {{
+            { 
+              var i = {{b}.Item}
+              i}}}
       """
 
 let [<Fact>] ``List`` () = 
@@ -405,12 +421,13 @@ let [<Fact>] ``List`` () =
 
     """ var __t_List_1 = make( defstruct( array( 'op_Nil','op_ColonColon' ) ),
           defstruct( array(  ) ),
-          defstruct( array( 'Head', 'Tail' ) )
-        )
+          defstruct( array( 'Head', 'Tail' ) ))
 
-        var f = fn(_arg1) if {isStructInstance( _arg1, __t_List_1.op_ColonColon )} {{ var xs = {{_arg1}.Tail}
-                                                                                    { var x = {{_arg1}.Head}
-                                                                                      x } }} else {0}
+        var f = fn(_arg1) if {isStructInstance( _arg1, __t_List_1.op_ColonColon )} {{ 
+          var xs = {{_arg1}.Tail}
+          { 
+            var x = {{_arg1}.Head}
+            x}}} else {0}
       """
 
 let [<Fact>] ``Multiline strings`` () = 
@@ -437,10 +454,13 @@ let [<Fact>] ``Box is turned into identity`` () =
       let b = box "abc" """
 
     """ 
-      var a__1 = { var x__20 = {5} 
-                   x__20 }
-      var b__1 = { var x__20 = {'abc'} 
-                   x__20 }
+      var a__1 = { 
+        var x__20 = {5} 
+        x__20}
+
+      var b__1 = { 
+        var x__20 = {'abc'} 
+        x__20}
     """
 
 
@@ -454,7 +474,7 @@ let [<Fact>] ``Array set`` () =
 
     """ 
       var a__1 = array( 1, 2 )
-      {a__1}[1] = {5} """
+      { var _0 = a__1 var _1 = 1 var _2 = 5 _0[_1] = _2 } """
 
 
 let [<Fact>] ``Lambda expressions`` () = 
@@ -469,8 +489,9 @@ let [<Fact>] ``Lambda expressions`` () =
 
     """ 
       var ap = fn(f, x) {f}(x)
-      var g = { var f__1 = {fn(z) {z} + {5}}
-                fn(x__1) {ap}(f__1, x__1) }
+      var g = { 
+        var f__1 = {fn(z) {z} + {5}}
+        fn(x__1) {ap}(f__1, x__1)}
       var z__1 = {{g}}(5)
       var w = {ap}(fn(z__2) {z__2} + {6}, 7)
     """
@@ -485,6 +506,7 @@ let [<Fact>] ``Sequence`` () =
 
     """ 
       var f = fn(x) null
-      var g = { {f}(5) 
-                6 }
+      var g = { 
+        {f}(5) 
+        6}
     """

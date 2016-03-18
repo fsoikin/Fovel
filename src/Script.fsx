@@ -14,6 +14,7 @@ module Resources =
 #load "SymbolGen.fs"
 #load "FSCompiler.fs"
 #load "CodeGen.fs"
+#load "PrettyPrint.fs"
 #load "CoreLib.FSharp.fs"
 #load "CoreLib.fs"
 #load "Transformation.fs"
@@ -32,14 +33,15 @@ let ints = """
 let src = """
       module X
 
-      let a = box 5
+      let a = 5
+      let f x = (x-6) + 5
       """
 
 let srcs = [ "ints.fs", ints; "a.fs", src]
 
 
 let e = 
-  fsharpSourcesToShovel Config.Default srcs 
+  fsharpSourcesToShovel Config.WithoutCoreLib srcs 
   |> Result.mapError Error.formatAll
 
 //let ee =

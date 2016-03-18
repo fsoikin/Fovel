@@ -71,8 +71,9 @@
     <Compile Include="BindingGen.fs" />
     <Compile Include="TypeGen.fs" />
     <Compile Include="SymbolGen.fs" />
-    <Compile Include="FSCompiler.fs" />
     <Compile Include="CodeGen.fs" />
+    <Compile Include="PrettyPrint.fs" />
+    <Compile Include="FSCompiler.fs" />
     <Compile Include="CoreLib.FSharp.fs" />
     <Compile Include="CoreLib.fs" />
     <Compile Include="Transformation.fs" />

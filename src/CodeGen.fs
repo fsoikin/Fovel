@@ -3,6 +3,17 @@ open Fovel
 
 type NamedType = NamedType of name: string * typ: Type
 
+type ProgramText =
+  | Text of Code
+  | NewLine of contents: ProgramText
+  | Indent of content: ProgramText 
+  | Sequence of ProgramText list
+
+let curlyWrap content = Sequence <| (Text "{") :: (content @ [Text "}"])
+let roundWrap content = Sequence <| (Text "(") :: (content @ [Text ")"])
+let text fmt = Text << (sprintf fmt)
+let sepBy sep xs = [for x in xs do yield Text sep; yield x] |> List.skip 1
+
 let assignTypeNames program =
   let indexedName name idx = if idx = 0 then name else sprintf "%s__%d" name idx
   let typeNames = 
@@ -17,44 +28,42 @@ let (|SingleCaseUnion|_|) u = match u with Union (_, [{ Fields=[_] }]) -> Some()
 
 let typeName (NamedType (name,_)) = sprintf "__t_%s" name
 
-let unionCaseType case =
-  case.Fields |> Seq.map (sprintf "'%s'") |> String.concat ", "
+let structType fields =
+  fields |> Seq.map (sprintf "'%s'") |> String.concat ", "
   |> sprintf "defstruct( array( %s ) )"
+  |> Text
 
 let unionType cases =
-  sprintf "make( defstruct( array( '%s' ) ), \n\t%s\n )"
-  <| (cases |> Seq.map (fun c -> c.CaseId) |> String.concat "','")
-  <| (cases |> Seq.map unionCaseType |> String.concat ",\n\t")
+  let id { CaseId = i } = i
+  let fields { Fields = f } = f
+  Sequence
+    [ text "make( defstruct( array( '%s' ) )," (cases |> Seq.map id |> String.concat "','")
+      cases |> List.map (NewLine << structType << fields) |> sepBy "," |> Sequence |> Indent
+      Text ")" ]
 
 let refUnionCase typ case = sprintf "%s.%s" (typeName typ) case
 
-let createUnionCase typ case fields =
-  let fields = fields |> String.concat ", "
-  let comma = if fields = "" then "" else ", "
-  sprintf "make( %s%s%s )" (refUnionCase typ case) comma fields
+let createStruct structDef fields : ProgramText =
+  if fields = [] 
+    then text "make( %s )" structDef
+    else Sequence [text "make( %s, " structDef; Sequence (sepBy ", " fields); Text " )"]
+
+let createUnionCase typ case = createStruct (refUnionCase typ case)
+let createRecord typ = createStruct (typeName typ)
 
 let testUnionCase expr typ case =
-  sprintf "isStructInstance( %s, %s )" expr (refUnionCase typ case)
-
-let recordType fields =
-  fields |> String.concat "', '"
-  |> sprintf "defstruct( array( '%s' ) )"
-
-let createRecord typ fields =
-  let fields = fields |> String.concat ", "
-  let comma = if fields = "" then "" else ", "
-  sprintf "make( %s%s%s )" (typeName typ) comma fields
+  Sequence [Text "isStructInstance( "; expr; text ", %s )" (refUnionCase typ case) ]
 
 let typeCode = function
   | NotImportant -> None
   | SingleCaseUnion -> None // Erase single-case unions
   | Record(_, []) -> None // Empty structs shouldn't really happen, so we don't have to make this code nice
   | Union(_, cases) -> Some (unionType cases)
-  | Record(_, fields) -> Some (recordType fields)
+  | Record(_, fields) -> Some (structType fields)
 
 let typesCode types =
-  let gen (NamedType (_, typ) as t) = typeCode typ |> Option.map (sprintf "var %s = %s\n" (typeName t))
-  types |> Seq.choose gen |> String.concat ""
+  let gen (NamedType (_, typ) as t) = typeCode typ |> Option.map (fun code -> NewLine (Sequence [text "var %s = " (typeName t); code ]))
+  types |> List.choose gen
 
 let infixOpCode = function
   | InfixOpKind.Plus -> "+"
@@ -77,66 +86,78 @@ let constCode (c: obj) =
   | :? float as f -> sprintf "%f" f
   | _ -> failwithf "Const of type %s not supported" (c.GetType().Name)
 
-let rec exprCode intrinsicCode expr = 
+let rec exprCode intrinsicCode expr : ProgramText = 
   let r = exprCode intrinsicCode
-  let rl = Seq.map r
-  let rlc = rl >> String.concat ", "
+  let rl = List.map r
+  let rlc xs = rl xs |> sepBy ", "
   match expr with
-  | E.Intrinsic (i, args) -> intrinsicCode i (args |> List.map r)
+  | E.Intrinsic (i, args) -> 
+    let argIdxs = args |> List.mapi (fun i _ -> sprintf "_%d" i)
+    let argBindings = 
+      Seq.zip (rl args) argIdxs 
+      |> Seq.map (fun (a,i) -> Sequence [text " var %s = " i; a]) 
+      |> Seq.toList
+    curlyWrap (argBindings @ [text " %s " (intrinsicCode i argIdxs)])
+
   | E.IntrinsicAsValue (fn, argsCount) -> 
     let args = List.init argsCount (sprintf "_%d")
-    sprintf "fn(%s) %s" (args |> String.concat ", ") (intrinsicCode fn args)
+    Sequence [ text "fn(%s) " (args |> String.concat ", "); Text (intrinsicCode fn args) ]
 
-  | E.NewTuple(_, items) -> sprintf "array( %s )" <| rlc items
-  | E.TupleGet(_, index, tuple) -> sprintf "{%s}[%d]" <| r tuple <| index
+  | E.NewTuple(_, items) -> Sequence [ Text "array( "; Sequence (rlc items); Text " )" ]
+  | E.TupleGet(_, index, tuple) -> Sequence [ curlyWrap [r tuple]; text "[%d]" index ] 
 
   // Single-case unions are erased:
   | E.UnionCase(NamedType (_,SingleCaseUnion), _, [value]) -> r value
-  | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion), _) -> "true"
+  | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion), _) -> Text "true"
   | E.UnionCaseGet(union, NamedType (_,SingleCaseUnion), _, _) -> r union
 
   | E.UnionCase(unionType, case, fields) -> createUnionCase unionType case (rl fields)
   | E.UnionCaseTest(union, unionType, case) -> testUnionCase (r union) unionType case
-  | E.UnionCaseGet(union, _, _, field) -> sprintf "{%s}.%s" (r union) field
+  | E.UnionCaseGet(union, _, _, field) -> Sequence [ curlyWrap[r union]; Text "."; Text field ]
 
   | E.NewRecord(recordType, fields) -> createRecord recordType (rl fields)
-  | E.RecordFieldGet(_, record, field) -> sprintf "{%s}.%s" (r record) field
+  | E.RecordFieldGet(_, record, field) -> Sequence [ curlyWrap[r record]; Text "."; Text field ]
 
-  | E.NewArray (_, els) -> sprintf "array( %s )" (rlc els)
-  | E.ArrayElement (arr, idx) -> sprintf "{%s}[%s]" (r arr) (r idx)
+  | E.NewArray (_, els) -> Sequence [ Text "array( "; Sequence (rlc els); Text " )" ]
+  | E.ArrayElement (arr, idx) -> Sequence [ curlyWrap [r arr]; Sequence [ Text "["; r idx; Text "]" ] ]
 
-  | E.Function(parameters, body) -> sprintf "fn(%s) %s" (String.concat ", " parameters) (r body)
-  | E.InfixOp(leftArg, op, rightArg) -> sprintf "{%s} %s {%s}" (r leftArg) (infixOpCode op) (r rightArg)
-  | E.SymRef sym -> sym
-  | E.Const(c, _) -> constCode c
+  | E.Function(parameters, body) -> Sequence [ text "fn(%s) " (String.concat ", " parameters); Indent (r body) ]
+  | E.InfixOp(leftArg, op, rightArg) -> Sequence [ curlyWrap [r leftArg]; text " %s " (infixOpCode op); curlyWrap [r rightArg] ]
+  | E.SymRef sym -> Text sym
+  | E.Const(c, _) -> Text (constCode c)
   
   | E.Let(bindings, body) -> 
-    let formatBinding (sym, expr) = sprintf "var %s = {%s}" sym (r expr)
-    let bindings = bindings |> Seq.map formatBinding |> String.concat "\n"
-    sprintf "{ %s\n%s }" bindings (r body)
+    let formatBinding (sym, expr) = NewLine( Sequence [ text "var %s = " sym; curlyWrap [r expr] ] )
+    let bindings = bindings |> List.map formatBinding
+    bindings @ [r body |> NewLine] |> curlyWrap |> Indent
 
-  | E.Sequence es -> sprintf "{ %s }" (es |> Seq.map r |> String.concat "\n")
+  | E.Sequence es -> es |> List.map (NewLine << r) |> curlyWrap |> Indent
 
-  | E.Conditional(test, then', else') -> sprintf "if {%s} {%s} else {%s}" (r test) (r then') (r else')
-  | E.TraitCall _ -> sprintf "panic( 'Unresolved static generic constraint' )"
+  | E.Conditional(test, then', else') -> 
+    let test = curlyWrap [r test]
+    let then' = curlyWrap [r then']
+    let else' = Sequence [Text " else "; curlyWrap [r else']]
+    Sequence [ Text "if "; test; Text " "; then'; else' ]
+
+  | E.TraitCall _ -> Text "panic( 'Unresolved static generic constraint' )"
 
   // A call without arguments in F# means "generic value", as in "let v<'a> = f<'a>()"
-  | E.Call(func, _, []) -> sprintf "{%s}" (r func)
+  | E.Call(func, _, []) -> curlyWrap [r func]
 
-  | E.Call(func, _, args) -> sprintf "{%s}(%s)" (r func) (rlc args)
+  | E.Call(func, _, args) -> Sequence [ curlyWrap [r func]; roundWrap (rlc args) ]
 
 
-let bindingCode exprCode { Binding.Fn = fn; Expr = expr } = 
+let bindingCode exprCode { Binding.Fn = fn; Expr = expr } : ProgramText = 
   let expr = exprCode expr
 
   match fn with
   | None -> expr
-  | Some (fn, []) -> sprintf "var %s = %s" fn expr
+  | Some (fn, []) -> Sequence [ Text (sprintf "var %s = " fn); Indent expr ]
   | Some (fn, args) -> 
     let args = args |> Seq.map fst |> String.concat ", "
-    sprintf "var %s = fn(%s) %s" fn args expr
+    Sequence [ Text (sprintf "var %s = fn(%s) " fn args); Indent expr ]
 
-let programCode exprCode program = 
+let programCode exprCode program : ProgramText = 
   let types = program |> List.collect Binding.allTypes |> List.distinct |> typesCode
-  let code = program |> Seq.map (bindingCode exprCode) |> String.concat "\n"
-  types + code
+  let code = program |> List.map (NewLine << bindingCode exprCode)
+  Sequence (types @ code)
