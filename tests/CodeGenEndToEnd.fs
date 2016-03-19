@@ -275,9 +275,7 @@ let [<Fact>] ``Inlining`` () =
         var f = {{ 
           var x__2 = {5}
           fn(y__1) { 
-            var x__3 = {x__2}
-            var y__2 = {y__1}
-            {x__3} + {y__2}}}}
+            {x__2} + {y__1}}}}
           var x__1 = {10}
           {f}(x__1)}"""
 
@@ -530,7 +528,8 @@ let [<Fact>] ``No trivial LETs`` () =
     """ 
       var g = {
 		    var x = {5}
-		    fn(y) {x} + {y}}
+		    fn(y) {
+          {x} + {y}}}
     """
 
 let [<Fact>] ``Not dropping LETs`` () = 

@@ -75,8 +75,8 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.Call (None, Intrinsics.Fn "Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicFunctions.GetArray", _, _, [arr;idx]) -> E.ArrayElement <! (r arr, r idx)
 
   // For application of a curried function, we need to generate a series of Call expressions
-  | BasicPatterns.Application (BasicPatterns.Value fn, _, args) -> 
-    List.fold (fun fnSoFar arg -> E.Call <!! (fnSoFar, retn [], rl [arg])) (retn <| E.SymRef fn) args
+  | BasicPatterns.Application (fn, _, args) -> 
+    List.fold (fun fnSoFar arg -> E.Call (fnSoFar, [], [arg])) <!> (r fn) <*> (rl args)
 
   // Function calls
   | BasicPatterns.Call (None, fn, _, typeArgs, args) -> E.Call <!! (retn (E.SymRef fn), retn typeArgs, rl args)
@@ -104,7 +104,7 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
     E.Let <! (bindings, r inExpr)
 
   | BasicPatterns.Sequential (e1, e2) -> 
-    let makeSeq e1 e2 = retn <| E.Sequence [e1; e2]
+    let makeSeq e1 e2 = E.Sequence [e1; e2]
     makeSeq <!> (r e1) <*> (r e2)
 
   // Branching

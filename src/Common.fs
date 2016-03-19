@@ -43,7 +43,7 @@ module Result =
   let inline map f = bind (OK << f)
   let inline mapError f = bindError (Error << f)
 
-  let inline ap f r = f |> bind (fun f -> bind f r)
+  let inline ap f r = f |> bind (fun f -> r |> map f)
   let inline map2 f a b =
     match a, b with
     | OK x, OK y -> OK (f x y)
@@ -66,7 +66,7 @@ module ResultAuto =
   let inline (||*>) r f = map ((<||) f) r
 
   let inline (<*>) f r = ap f r
-  let inline (<!>) f r = ap (retn (retn << f)) r
+  let inline (<!>) f r = ap (retn f) r
 
   let inline (<!) f (a,b) = f <!> (tuple a b)
   let inline (<!!) f (a,b,c) = f <!> (tuple3 a b c)
