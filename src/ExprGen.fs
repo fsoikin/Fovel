@@ -74,10 +74,12 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.Call (None, Intrinsics.TupleGet idx, _, _, [tupl]) -> E.TupleGet <!! (retn tupl.Type, retn idx, r tupl)
   | BasicPatterns.Call (None, Intrinsics.Fn "Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicFunctions.GetArray", _, _, [arr;idx]) -> E.ArrayElement <! (r arr, r idx)
 
+  // For application of a curried function, we need to generate a series of Call expressions
+  | BasicPatterns.Application (BasicPatterns.Value fn, _, args) -> 
+    List.fold (fun fnSoFar arg -> E.Call <!! (fnSoFar, retn [], rl [arg])) (retn <| E.SymRef fn) args
+
   // Function calls
-  //| BasicPatterns.Call (None, fn, _, _, []) -> retn (E.SymRef fn)
   | BasicPatterns.Call (None, fn, _, typeArgs, args) -> E.Call <!! (retn (E.SymRef fn), retn typeArgs, rl args)
-  | BasicPatterns.Application (fn, _, args) -> E.Call <!! (r fn, retn [], rl args)
   | BasicPatterns.TraitCall (typs, membr, _, _, args) -> E.TraitCall <!! (retn typs, retn membr, rl args)
 
   // Tuples

@@ -24,8 +24,6 @@ let assignTypeNames program =
   let program = program |> List.map (Binding.mapType namedType)
   program
 
-let (|SingleCaseUnion|_|) u = match u with Union (_, [{ Fields=[_] }]) -> Some() | _ -> None
-
 let typeName (NamedType (name,_)) = sprintf "__t_%s" name
 
 let structType fields =
@@ -56,7 +54,7 @@ let testUnionCase expr typ case =
 
 let typeCode = function
   | NotImportant -> None
-  | SingleCaseUnion -> None // Erase single-case unions
+  | SingleCaseUnion _ -> None // Erase single-case unions
   | Record(_, []) -> None // Empty structs shouldn't really happen, so we don't have to make this code nice
   | Union(_, cases) -> Some (unionType cases)
   | Record(_, fields) -> Some (structType fields)
@@ -107,9 +105,9 @@ let rec exprCode intrinsicCode expr : ProgramText =
   | E.TupleGet(_, index, tuple) -> Sequence [ curlyWrap [r tuple]; text "[%d]" index ] 
 
   // Single-case unions are erased:
-  | E.UnionCase(NamedType (_,SingleCaseUnion), _, [value]) -> r value
-  | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion), _) -> Text "true"
-  | E.UnionCaseGet(union, NamedType (_,SingleCaseUnion), _, _) -> r union
+  | E.UnionCase(NamedType (_,SingleCaseUnion _), _, [value]) -> r value
+  | E.UnionCaseTest(_, NamedType (_,SingleCaseUnion _), _) -> Text "true"
+  | E.UnionCaseGet(union, NamedType (_,SingleCaseUnion _), _, _) -> r union
 
   | E.UnionCase(unionType, case, fields) -> createUnionCase unionType case (rl fields)
   | E.UnionCaseTest(union, unionType, case) -> testUnionCase (r union) unionType case
@@ -158,6 +156,7 @@ let bindingCode exprCode { Binding.Fn = fn; Expr = expr } : ProgramText =
     Sequence [ Text (sprintf "var %s = fn(%s) " fn args); Indent expr ]
 
 let programCode exprCode program : ProgramText = 
+  let program = assignTypeNames program
   let types = program |> List.collect Binding.allTypes |> List.distinct |> typesCode
   let code = program |> List.map (NewLine << bindingCode exprCode)
   Sequence (types @ code)

@@ -61,9 +61,8 @@ let [<Fact>] ``Complex functions`` () =
     """
       var f = fn(x, y) { 
         var z = {{x} + {6}} 
-        { 
-          var y__1 = {{y} - {6}}
-          {z} * {y__1}}}
+        var y__1 = {{y} - {6}}
+        {z} * {y__1}}
       var g = { 
         var x__1 = {5}
         fn(y__2) {f}(x__1, y__2)}
@@ -82,9 +81,8 @@ let [<Fact>] ``Recursive functions`` () =
     """
       var f = fn(x, y) { 
         var z = {{x} + {6}}
-        { 
-          var y__1 = {{y} - {6}}
-          {z} * {{g}(y__1)}}}
+        var y__1 = {{y} - {6}}
+        {z} * {{g}(y__1)}}
       var g = fn(x__1) {f}(x__1, {x__1} + {1})
       var h = {{g}(7)} + {{f}(5, 8)} """
 
@@ -213,17 +211,13 @@ let [<Fact>] ``Unions`` () =
       var y = make( __t_U.W, '1' )
       var z = make( __t_U.Z, 5, true )
       var a = if {isStructInstance( x, __t_U.W )} {{
-        { 
-          var j = {{x}.ss}
-          5}}} else {if {isStructInstance( x, __t_U.Z )} {{
-            { 
-              var k = {{x}.a}
-              { 
-                var b = {{x}.b}
-                k}}}} else {{
-                  { 
-                    var i = {{x}.Item}
-                    i}}}} """
+        var j = {{x}.ss}
+        5}} else {if {isStructInstance( x, __t_U.Z )} {{
+          var k = {{x}.a}
+          var b = {{x}.b}
+          k}} else {{
+            var i = {{x}.Item}
+            i}}} """
 
 let [<Fact>] ``Records`` () = 
   compileCompare
@@ -253,10 +247,9 @@ let [<Fact>] ``Records`` () =
       var a = {patternInput_9}.A
 
       var m = if {isStructInstance( {r1}.C, __t_U.X )} {{
-        { 
-          var x = {{{r1}.C}.Item}
-          x}}} else {{
-          1}} """
+        var x = {{{r1}.C}.Item}
+        x}} else {{
+        1}} """
 
 let [<Fact>] ``Inlining`` () = 
   compileCompare
@@ -407,9 +400,8 @@ let [<Fact>] ``Type alias`` () =
 
         var f = fn(b) if {isStructInstance( b, __t_A_1.Y )} {{
           0}} else {{
-            { 
-              var i = {{b}.Item}
-              i}}}
+            var i = {{b}.Item}
+            i}}
       """
 
 let [<Fact>] ``List`` () = 
@@ -425,9 +417,8 @@ let [<Fact>] ``List`` () =
 
         var f = fn(_arg1) if {isStructInstance( _arg1, __t_List_1.op_ColonColon )} {{ 
           var xs = {{_arg1}.Tail}
-          { 
-            var x = {{_arg1}.Head}
-            x}}} else {0}
+          var x = {{_arg1}.Head}
+          x}} else {0}
       """
 
 let [<Fact>] ``Multiline strings`` () = 
@@ -509,4 +500,144 @@ let [<Fact>] ``Sequence`` () =
       var g = { 
         {f}(5) 
         6}
+    """
+
+let [<Fact>] ``No trivial LETs`` () = 
+  (*
+    The code below gets parsed by the compiler as roughly this:
+
+      let g = 
+        let x = 5
+        fun y ->
+          let x' = x
+          let y' = y
+          x' + y'
+
+    The last two "let" statements are redundant and only clutter the code (and maybe create undue burden on the Shovel VM),
+    so we have an optimization that removes them and turns the above into this:
+
+      let g = 
+        let x = 5
+        fun y -> x + y
+  *)
+  compileCompare
+    """
+      module X
+
+      let inline f x y = x+y
+      let g = f 5 """
+
+    """ 
+      var g = {
+		    var x = {5}
+		    fn(y) {x} + {y}}
+    """
+
+let [<Fact>] ``Not dropping LETs`` () = 
+  (*
+    The code below, after inlining the functions, would be translated to something like this:
+
+      let h =
+        let z = b
+          let x' = z
+          let y' = 7
+          f x' y'
+
+    After collapsing nested LETs, this would become this:
+
+      let h =
+        let z = b
+        let x' = z
+        let y' = 7
+        f x' y'
+
+    And then, after eliminating trivial LETs, it would become this:
+
+      let h =
+        let y' = 7
+        f x y'
+
+    The statement "let z = b" got eliminated, because it's trivial, but the identifier "b" was lost,
+    because it wasn't used in the body "f x' y'".
+    To avoid this, we should first eliminate trivial LETs, and only then collapse nested LETs.
+  *)
+  compileCompare
+    """
+      module X
+
+      let inline f x y = x+y
+      let inline g z = f z 7
+      let b = 8
+      let h = g b """
+    """ 
+      var b = 8
+      var h = {
+        var y = {7}
+        {b} + {y}} """
+
+let [<Fact>] ``No trivial LETs of erased single-case unions`` () = 
+  compileCompare
+    """
+      module X
+
+      type U = U of string
+
+      let f a b = 1
+      let inline g a = a+2
+      let inline h x (U s) =  f (g x) s
+
+      let u = U "abc"
+      let d = h 3 u
+    """
+    """ 
+      var f = fn(a, b) 1
+      var u = 'abc'
+      var d = {
+        var x = {3}
+        {f}({
+          {x} + {2}}, u)}
+    """
+
+let [<Fact>] ``No trivial LETs, when the trivial let is within another let's binding`` () = 
+  compileCompare
+    """
+      module X
+      
+      let inline f (g: unit -> 't) = g()
+      let h a b = 
+        let x = f a
+        x
+    """
+    """ 
+      var h = fn(a, b) {
+        var x = {{
+          {a}(null)}}
+        x}
+    """
+
+let [<Fact>] ``Curried, uncurried and mixed-curried functions`` () = 
+  compileCompare
+    """
+      module X
+      
+      let f1 (x: int -> string -> unit) = x 5 "abc"
+      let f2 (x: int * string -> string -> unit) = x (5, "abc") "xyz"
+      let f3 (x: int * string -> string -> unit*int -> float -> unit) = x (5, "abc") "xyz" ((),9) 3.4
+      let h (a,b) c (d,e) f = ()
+      h (1,2) 3 (4,5) 6
+      f3 h
+    """
+    """ 
+      var f1 = fn(x) {{x}(5)}('abc')
+      var f2 = fn(x__1) {{x__1}(array( 5, 'abc' ))}('xyz')
+      var f3 = fn(x__2) {{{{x__2}(array( 5, 'abc' ))}('xyz')}(array( null, 9 ))}(3.400000)
+      var h = fn(a, b, c, d, e, f) null
+      {h}(1, 2, 3, 4, 5, 6)
+      {f3}(fn(tupledArg) {
+		      var a__1 = {{tupledArg}[0]}
+		      var b__1 = {{tupledArg}[1]}
+		      fn(c__1) fn(tupledArg) {
+					      var d__1 = {{tupledArg}[0]}
+					      var e__1 = {{tupledArg}[1]}
+					      fn(f__1) {h}(a__1, b__1, c__1, d__1, e__1, f__1)}})
     """

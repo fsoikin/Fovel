@@ -19,33 +19,55 @@ module Resources =
 #load "CoreLib.fs"
 #load "Transformation.fs"
 #load "Validation.fs"
+#load "Optimization.fs"
 #load "Integration.fs"
 
 open Fovel
 open Fovel.Gen
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
-let ints = """
-  module XX
-  //let a = [1..3]
-  """
 
 let src = """
       module X
-
-      let a = 5
-      let f x = (x-6) + 5
+      
+      let f1 (x: int -> string -> unit) = x 5 "abc"
+      let f2 (x: int * string -> string -> unit) = x (5, "abc") "xyz"
+      let f3 (x: int * string -> string -> unit*int -> float -> unit) = x (5, "abc") "xyz" ((),9) 3.4
+      let h (a,b) c (d,e) f = ()
+      h (1,2) 3 (4,5) 6
+      f3 h
       """
 
-let srcs = [ "ints.fs", ints; "a.fs", src]
-
+let srcs = [ "a.fs", src]
 
 let e = 
   fsharpSourcesToShovel Config.WithoutCoreLib srcs 
   |> Result.mapError Error.formatAll
 
-//let ee =
-//  srcs
-//  |> FSCompiler.parseProgram
-//  >>= fsharpProgramToFovel Config.WithoutCoreLib.ParseIntrinsic
-//  |*> Transformation.inlineFunctions
+let (OK ( 
+          ( Some (_, [[p]]), BasicPatterns.Application (BasicPatterns.Value f, a, b) ) 
+          :: 
+          ( Some (_, [[p1]]), BasicPatterns.Application (BasicPatterns.Value f1, a1, b1) ) 
+          ::
+          ( Some (_, [[p2]]), BasicPatterns.Application (BasicPatterns.Value f2, a2, b2) ) 
+          ::
+          _
+    ) ) =
+  srcs
+  |> FSCompiler.parseProgram
+
+p2.CurriedParameterGroups |> Seq.map (fun g -> g.Count)
+
+let ee =
+  srcs
+  |> FSCompiler.parseProgram
+//  >>= fsharpProgramToFovel (fun _ -> None:unit option)
+//  |*> Transformation.applyAll
+//  >>= Validation.applyAll
+//  |*> eraseFSharpEntities
+//  |*> Optimization.applyAll
+
+let x = [1;2;3;4;5;6;7;8]
+let y = [2;1;2;1]
+
+Seq.scan (fun rem y -> List.take rem) 0 [1;2;3]

@@ -78,6 +78,7 @@
     <Compile Include="CoreLib.fs" />
     <Compile Include="Transformation.fs" />
     <Compile Include="Validation.fs" />
+    <Compile Include="Optimization.fs" />
     <Compile Include="Integration.fs" />
     <None Include="paket.references" />
     <None Include="Script.fsx" />

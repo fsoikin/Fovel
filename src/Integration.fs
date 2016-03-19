@@ -34,7 +34,7 @@ let fsharpProgramToFovel parseIntrinsic program =
   |*> Binding.excludeIntrinsicDefinitions parseIntrinsic
 
 let eraseFSharpEntities program =
-  program |> Symbol.genSymbols |> Type.genTypes |> CodeGen.assignTypeNames
+  program |> Symbol.genSymbols |> Type.genTypes
 
 let replaceFunctions replaceCall program = 
   let functionOfBinding = function { Binding.Fn = Some(fn,_) } -> Some fn | _ -> None
@@ -60,6 +60,7 @@ let fsharpSourcesToShovel config sources =
   |*> Transformation.applyAll
   >>= Validation.applyAll
   |*> eraseFSharpEntities
+  |*> Optimization.applyAll
   |*> CodeGen.programCode (CodeGen.exprCode config.GenerateIntrinsicCode)
   |*> PrettyPrint.print
   |*> String.concat ""

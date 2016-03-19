@@ -19,4 +19,5 @@
       "../CoreLib.fs"
       "../Transformation.fs"
       "../Validation.fs"
+      "../Optimization.fs"
       "../Integration.fs"

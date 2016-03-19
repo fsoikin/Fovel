@@ -16,7 +16,10 @@ let typeDefinition (t: FSharpType) = if t.HasTypeDefinition then Some t.TypeDefi
 let rec fsharpTypeToFovelType (t: FSharpType) = 
   match t.IsAbbreviation, typeDefinition t with
   | true,_ -> fsharpTypeToFovelType t.AbbreviatedType
-  | _, Some e when e.IsFSharpUnion -> Type.Union (e.LogicalName, e.UnionCases |> Seq.map unionCase |> Seq.toList)
+  | _, Some e when e.IsFSharpUnion -> 
+    if e.UnionCases.Count = 1 && e.UnionCases.[0].UnionCaseFields.Count = 1 
+      then Type.SingleCaseUnion e.LogicalName
+      else Type.Union (e.LogicalName, e.UnionCases |> Seq.map unionCase |> Seq.toList)
   | _, Some e when e.IsFSharpRecord -> Type.Record (e.LogicalName, e.FSharpFields |> Seq.map (fun f -> sanitizeId f.Name) |>  Seq.toList)
   | _ -> NotImportant
 
