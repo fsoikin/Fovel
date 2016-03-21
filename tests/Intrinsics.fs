@@ -37,7 +37,7 @@ let [<Fact>] ``Code inside intrinsic definition isn't validated`` () =
       var x = { var _0 = 5 var _1 = 6 foo } """
 
 let [<Fact>] ``Used as values`` () = 
-  let parseIntrinsic (fn: FSharp.fn) = if fn.LogicalName = "intr" then Some() else None
+  let parseIntrinsic (fn: FSharp.fn) = if fn.LogicalName.StartsWith "intr" then Some() else None
   let intrinsicCode () args = "foo( " + (String.concat ", " args) + " )"
   let config = 
     { Config.WithoutCoreLib with
@@ -58,12 +58,19 @@ let [<Fact>] ``Used as values`` () =
     """
       module X
       let inline ap f x y = f x y
-      let intr (x: string []) (y: int) : unit = failwith ""
-      ap intr [|"a"|] 0
+      let intr1 (x: string) (y: int) : unit = failwith ""
+      let intr2 (x: string, y: int) (z: bool) : unit = failwith ""
+      ap intr1 "a" 0
+      ap intr2 ("b", 5) true
     """
     """
-      { 
-        var f = {fn(_0, _1) foo( _0, _1 )}
-        var x = {array( 'a' )}
-        var y = {0}
-        {f}(x, y)} """
+      {
+	      var f = {fn(_0, _1) foo( _0, _1 )}
+	      var x = {'a'}
+	      var y = {0}
+	      {{f}(x)}(y)}
+      {
+	      var f = {fn(_0, _1) foo( _0[0], _0[1], _1 )}
+	      var x = {array( 'b', 5 )}
+	      var y = {true}
+	      {{f}(x)}(y)} """

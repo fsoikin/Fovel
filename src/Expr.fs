@@ -7,7 +7,7 @@ type InfixOpKind =
   
 type E<'Type, 'Symbol, 'Intrinsic> =
   | Intrinsic of fn: 'Intrinsic * args: E<'Type, 'Symbol, 'Intrinsic> list
-  | IntrinsicAsValue of fn: 'Intrinsic * argsCount: int
+  | IntrinsicAsValue of fn: 'Intrinsic * curriedArgGroups: int list
   | NewTuple of tupleType: 'Type * items: E<'Type, 'Symbol, 'Intrinsic> list
   | TupleGet of tupleType: 'Type * index: int * tuple: E<'Type, 'Symbol, 'Intrinsic>
   | UnionCase of unionType: 'Type * case: Identifier * fields: E<'Type, 'Symbol, 'Intrinsic> list

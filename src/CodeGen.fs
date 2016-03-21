@@ -97,9 +97,18 @@ let rec exprCode intrinsicCode expr : ProgramText =
       |> Seq.toList
     curlyWrap (argBindings @ [text " %s " (intrinsicCode i argIdxs)])
 
-  | E.IntrinsicAsValue (fn, argsCount) -> 
-    let args = List.init argsCount (sprintf "_%d")
-    Sequence [ text "fn(%s) " (args |> String.concat ", "); Text (intrinsicCode fn args) ]
+  | E.IntrinsicAsValue (fn, curriedArgGroups) -> 
+    // Parameters - will have the form "_0, _1, _2 ... _n" where each "_n" stands for one curried group - either a tuple or one parameter
+    let parms = curriedArgGroups |> Seq.mapi (fun idx _ -> sprintf "_%d" idx) |> String.concat ", "
+
+    // Arguments - will have the form "_0, _1[0], _1[1], _2, ..." where "_n" stands for one individual argument and "_n[0], _n[1]" stands
+    // for destructuring of the n-th tuple.
+    let arg idx tupleSize =
+      if tupleSize = 1 then [sprintf "_%d" idx]
+      else List.init tupleSize (fun item -> sprintf "_%d[%d]" idx item)
+    let args = curriedArgGroups |> Seq.mapi arg |> Seq.collect id |> Seq.toList
+
+    Sequence [ text "fn(%s) " parms; Text (intrinsicCode fn args) ]
 
   | E.NewTuple(_, items) -> Sequence [ Text "array( "; Sequence (rlc items); Text " )" ]
   | E.TupleGet(_, index, tuple) -> Sequence [ curlyWrap [r tuple]; text "[%d]" index ] 
