@@ -30,11 +30,11 @@ let [<Fact>] ``Operators as functions`` () =
       let z = y 6 """
     """
       var f = fn(x) fn(y) {x} + {y}
-      var x__1 = {{{f}}(1)}(2)
+      var x__1 = {{f}(1)}(2)
       var y__1 = { 
         var x__2 = {5}
         fn(y__2) {x__2} + {y__2}}
-      var z = {{y__1}}(6) """
+      var z = {y__1}(6) """
 
 let [<Fact>] ``Conditional`` () = 
   compileCompare
@@ -66,7 +66,7 @@ let [<Fact>] ``Complex functions`` () =
       var g = { 
         var x__1 = {5}
         fn(y__2) {f}(x__1, y__2)}
-      var h = {{g}}(7) """
+      var h = {{g}(7)} + {{f}(5, 8)} """
 
 let [<Fact>] ``Recursive functions`` () = 
   compileCompare
@@ -378,8 +378,8 @@ let [<Fact>] ``Generic values`` () =
 
       var t = fn(unitVar0) make( __t_T_1.T, 'abc' )
       var u = {t}(null)
-      var a = {u}
-      var b = {u} """
+      var a = u
+      var b = u """
 
 
 let [<Fact>] ``Type alias`` () = 
@@ -481,7 +481,7 @@ let [<Fact>] ``Lambda expressions`` () =
       var g = { 
         var f__1 = {fn(z) {z} + {5}}
         fn(x__1) {ap}(f__1, x__1)}
-      var z__1 = {{g}}(5)
+      var z__1 = {g}(5)
       var w = {ap}(fn(z__2) {z__2} + {6}, 7)
     """
 
@@ -640,3 +640,4 @@ let [<Fact>] ``Curried, uncurried and mixed-curried functions`` () =
 					      var e__1 = {{tupledArg}[1]}
 					      fn(f__1) {h}(a__1, b__1, c__1, d__1, e__1, f__1)}})
     """
+   

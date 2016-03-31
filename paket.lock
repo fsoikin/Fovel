@@ -1,13 +1,13 @@
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    FsCheck (2.2.4)
+    FsCheck (2.2.5)
       FSharp.Core (>= 3.1.2.5)
-    FSharp.Compiler.Service (2.0.0.6)
+    FSharp.Compiler.Service (2.0.0.7)
     FSharp.Core (4.0.0.1) - redirects: on
     FSharpx.Collections (1.14.0)
       FSharp.Core (>= 3.0.0)
-    FSharpx.Core (1.8.36)
+    FSharpx.Core (1.8.32)
     FsUnit.xUnit (1.4.1) - framework: >= net45
       FSharp.Core (>= 3.1.2.5)
       xunit (2.1.0)
@@ -182,4 +182,4 @@ GROUP Build
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    FAKE (4.21.4)
+    FAKE (4.22.8)

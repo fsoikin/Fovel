@@ -65,12 +65,15 @@ let [<Fact>] ``Used as values`` () =
     """
     """
       {
-	      var f = {fn(_0, _1) foo( _0, _1 )}
+	      var f = {fn(x__1) fn(y__1) { var _0 = x__1 var _1 = y__1 foo( _0, _1 ) }}
 	      var x = {'a'}
 	      var y = {0}
 	      {{f}(x)}(y)}
       {
-	      var f = {fn(_0, _1) foo( _0[0], _0[1], _1 )}
+	      var f = {fn(tupledArg) {
+		      var x__2 = {{tupledArg}[0]}
+		      var y__2 = {{tupledArg}[1]}
+		      fn(z) { var _0 = x__2 var _1 = y__2 var _2 = z foo( _0, _1, _2 ) }}}
 	      var x = {array( 'b', 5 )}
 	      var y = {true}
 	      {{f}(x)}(y)} """

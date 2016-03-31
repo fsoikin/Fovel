@@ -17,10 +17,16 @@ let rec collapseChainedLet = function
 
   | e -> e |> Expr.cata collapseChainedLet id id id
 
+let private trivialBindingSymbolPair (sym, expr) = 
+  match expr with
+  | E.SymRef s
+  | E.Call (E.SymRef s, _, []) -> Some( sym, s )
+  | _ -> None
+
 let rec collapseTrivialLet = function
   | E.Let (bindings, body) ->
-    let trivials = bindings |> List.choose (fun (sym, e) -> match e with | E.SymRef s -> Some (sym, s) | _ -> None)
-    let nonTrivials = bindings |> List.choose (fun (sym, e) -> match e with | E.SymRef _ -> None | _ -> Some (sym, collapseTrivialLet e))
+    let trivials = bindings |> List.choose trivialBindingSymbolPair
+    let nonTrivials = bindings |> List.choose (fun (sym, e) -> if trivialBindingSymbolPair (sym, e) = None then Some (sym, collapseTrivialLet e) else None)
 
     if trivials = [] then E.Let( nonTrivials, body |> Expr.cata collapseTrivialLet id id id )
     else

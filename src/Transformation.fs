@@ -24,6 +24,10 @@ let private inlineExpression replaceNestedCalls args typeArgs (fn,parms,body) =
   let body = body |> replaceNestedCalls |> replaceGenericParams typeParams typeArgs
   E.Let (paramBindings, body)
 
+let rec collapseGenericValues = function
+  | E.Call (E.SymRef sym, _, []) -> E.SymRef sym
+  | e -> e |> Expr.cata collapseGenericValues id id id
+
 let inlineFunctions program =
   let allInlineBindings = program |> List.choose fnDefinition |> List.filter (fstt >> FSharp.isInline)
 
@@ -78,3 +82,4 @@ let applyAll program =
   |> inlineFunctions
   |> excludeInlineDefinitions
   |> resolveStaticConstraints
+  |> List.map (Binding.mapExpr collapseGenericValues)

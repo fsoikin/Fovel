@@ -91,6 +91,7 @@ let rec exprToFovel intrinsic expr : Result<_,_> =
   | BasicPatterns.DefaultValue t when not (isValueType t) -> retn <| E.Const( null, t )
   | BasicPatterns.DefaultValue _ as e -> Result.fail (Error.UnsupportedExpression e)
   | BasicPatterns.Value v -> retn (E.SymRef v)
+  | BasicPatterns.Lambda (sym, BasicPatterns.Call (None, fn, _, _, [BasicPatterns.Value arg])) when arg = sym -> retn (E.SymRef fn)
   | BasicPatterns.Lambda (sym, expr) -> E.Function <! (retn [sym], r expr)
 
   // Let
